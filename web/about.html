@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ITC Digital Twin — About This Project</title>
+  <title>ITC Digital Twin: About This Project</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -29,12 +29,11 @@
         <span class="d-critical"></span><span class="d-warning"></span><span class="d-good"></span>
       </div>
       <h1>A traffic-light network, built to be attacked</h1>
-      <p class="about-role">One person, start to finish — backend, frontend, the AI, the security, the tests</p>
       <p class="about-thesis">
         A working simulation of five traffic-light junctions, controlled by an
         AI that decides which light turns green from live sensor data. Next to
-        it: a console that attacks the system using <strong>real, documented
-        security weaknesses</strong> — not made-up ones — and shows how it
+        it, a console that attacks the system using <strong>real, documented
+        security weaknesses</strong>, not made-up ones, and shows how it
         defends against them.
       </p>
 
@@ -60,20 +59,13 @@
 
     <section class="about-section about-wrap">
       <p class="about-prose">
-        Most security demos invent a fake weakness just to show they can fix
-        it. This one doesn't. The very first attack it shows — sending a
-        command with no login or password required at all — is the exact
-        weakness researchers actually found in real traffic controllers back
-        in 2014
+        The five junctions use real Tel Aviv street names, and two are based
+        on real, published traffic numbers. One of the attacks modeled here is
+        the same weakness researchers found in real traffic controllers in
+        2014
         (<a href="https://www.usenix.org/system/files/conference/woot14/woot14-ghena.pdf" target="_blank" rel="noopener noreferrer">source</a>).
-        The five junctions use real Tel Aviv street names, and two of them are
-        based on real, published traffic numbers — one of them is an actual
-        intersection that ITC, the Israeli traffic-tech company this project
-        is modeled on, said in a real interview it manages
-        (<a href="https://www.ynetnews.com/environment/article/sjvw2tsjt" target="_blank" rel="noopener noreferrer">source</a>). Every attack is labeled with its real, official
-        classification from MITRE's own attack catalog for industrial systems.
-        Nothing here is invented to sound impressive — it's built from things
-        that are actually published and checkable.
+        Every attack is labeled with its official classification from MITRE's
+        attack catalog for industrial systems.
       </p>
     </section>
 
@@ -85,12 +77,12 @@
 
       <div class="highlight-list">
         <div class="highlight-item">
-          <h3>No shortcuts for "trusted" traffic <span class="highlight-tag">design</span></h3>
+          <h3>No shortcuts for "trusted" traffic <span class="highlight-tag">backend</span></h3>
           <p>
             The real AI and a separate tool built just to attack the system
             send their requests through the exact same two functions. There's
             no secret backdoor that skips the security check for traffic the
-            system already trusts — the only thing that decides if a request
+            system already trusts. The only thing that decides if a request
             is allowed is whether it's signed correctly. Real or fake, they're
             treated exactly the same way, which is what makes the security
             actually mean something instead of just being for show.
@@ -98,13 +90,13 @@
         </div>
 
         <div class="highlight-item">
-          <h3>Messages that stop working if they're reused <span class="highlight-tag">security</span></h3>
+          <h3>Messages that stop working if they're reused <span class="highlight-tag">backend</span></h3>
           <p>
             Every command is signed with a secret key, and the exact time it
             was sent is part of what gets signed. If someone captures a real
-            message and tries to send it again later — a "replay attack" — it
-            gets rejected for being too old, even though the signature itself
-            is still technically valid.
+            message and tries to send it again later (this is called a replay
+            attack), it gets rejected for being too old, even though the
+            signature itself is still technically valid.
           </p>
           <pre class="code">if abs(time.time() - timestamp) > FRESHNESS_WINDOW_SECONDS:
     return False  # a real, valid signature -- just sent too long ago
@@ -112,7 +104,7 @@ return hmac.compare_digest(signature, expected)</pre>
         </div>
 
         <div class="highlight-item">
-          <h3>A second check that doesn't trust the first one <span class="highlight-tag">security</span></h3>
+          <h3>A second check that doesn't trust the first one <span class="highlight-tag">backend</span></h3>
           <p>
             Even a command that's perfectly signed and looks completely
             legitimate still passes through one more independent check before
@@ -125,15 +117,15 @@ return hmac.compare_digest(signature, expected)</pre>
         </div>
 
         <div class="highlight-item">
-          <h3>A small prediction model that keeps learning <span class="highlight-tag">ML</span></h3>
+          <h3>A small prediction model that keeps learning <span class="highlight-tag">backend</span></h3>
           <p>
             One shared model guesses how much traffic is about to show up at
             each junction, and it keeps learning the whole time the server is
-            running — not trained once and left alone. I built it from
+            running. It's not trained once and left alone. I built it from
             scratch instead of using a library, so I can explain every part
             of it. It also learns from every sensor reading it receives, real
             or faked, which means a fake traffic report doesn't just lie
-            about one number — it can actually shift what the model expects
+            about one number. It can actually shift what the model expects
             going forward.
           </p>
         </div>
@@ -141,7 +133,7 @@ return hmac.compare_digest(signature, expected)</pre>
         <div class="highlight-item">
           <h3>Tested by attacking it, not by reading the code <span class="highlight-tag">testing</span></h3>
           <p>
-            I checked my own work by actually attacking the running server —
+            I checked my own work by actually attacking the running server:
             sending broken requests on purpose, opening 210 real connections
             at once to check a limit actually holds, and using a real browser
             to click through the site automatically to catch things an API
@@ -164,7 +156,7 @@ return hmac.compare_digest(signature, expected)</pre>
             The prediction model is shared across every junction, so it
             learns faster with less data. That backfired: I sent one
             obviously fake, huge traffic number as a test, and it didn't
-            just mess up the junction I targeted — it broke the model's
+            just mess up the junction I targeted. It broke the model's
             guesses everywhere, since they all come from the same shared
             model. I found this myself, then fixed it by putting a sensible
             limit on how large a single report is allowed to be.
@@ -176,10 +168,10 @@ return hmac.compare_digest(signature, expected)</pre>
           <p>
             It said, right there in its own description, that it would cut a
             junction off from all incoming traffic. I tested that claim
-            directly — isolated a junction, then attacked it again right
-            away — and the attack still worked. The code that was supposed
-            to block traffic to an isolated junction existed, but was never
-            actually being checked anywhere.
+            directly: isolated a junction, then attacked it again right away,
+            and the attack still worked. The code that was supposed to block
+            traffic to an isolated junction existed, but was never actually
+            being checked anywhere.
           </p>
           <span class="fixed-tag">✓ Found by testing what the button claimed to do, not trusting the label</span>
         </div>
@@ -193,7 +185,7 @@ return hmac.compare_digest(signature, expected)</pre>
       <div class="layer-strip">
         <div class="layer-row">
           <span class="layer-name">Security</span>
-          <p>Two separate locked channels — one for commands, one for sensor data — each protected against messages being captured and resent later, plus a system that auto-blocks repeat attackers and a backup check that trusts nothing above it.</p>
+          <p>Two separate locked channels, one for commands and one for sensor data, each protected against messages being captured and resent later, plus a system that auto-blocks repeat attackers and a backup check that trusts nothing above it.</p>
         </div>
         <div class="layer-row">
           <span class="layer-name">The AI</span>
@@ -233,18 +225,14 @@ return hmac.compare_digest(signature, expected)</pre>
         <p class="zone-subtitle">The clearest proof of a security project is letting someone try to break it.</p>
       </div>
       <p class="about-prose">
-        Flip Legacy Retrofit on, run any attack, watch it succeed — then flip
-        ITC Secure Integration on and run the identical attack again.
+        Flip Legacy Retrofit on, run any attack, and watch it succeed. Then
+        flip ITC Secure Integration on and run the identical attack again.
       </p>
       <div class="about-cta-row">
         <a href="index.html" class="btn btn-header btn-header-highlight">Open the Security Console →</a>
-        <a href="https://github.com/WassimAtrach/Digital-Twin" target="_blank" rel="noopener noreferrer" class="btn btn-header">Source on GitHub</a>
+        <a href="https://github.com/WassimAtrach/Digital-Twin" target="_blank" rel="noopener noreferrer" class="btn btn-header">GitHub</a>
       </div>
     </section>
   </main>
-
-  <footer class="about-footer about-wrap">
-    <p>Built solo end to end: architecture, backend, the ML model, the frontend, the security model, and the testing that found the bugs above.</p>
-  </footer>
 </body>
 </html>

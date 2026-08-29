@@ -1872,12 +1872,6 @@ body.page-stale > *:not(#disconnected-banner) {
   margin: 0 auto 0.4rem;
   max-width: 46rem;
 }
-.about-role {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  margin: 0 auto 1.1rem;
-  max-width: 46rem;
-}
 .about-thesis {
   font-size: 1.05rem;
   color: var(--text-secondary);
@@ -1914,6 +1908,14 @@ body.page-stale > *:not(#disconnected-banner) {
 }
 .about-section .zone-header {
   margin-bottom: 1.1rem;
+  /* Every section heading centers, not just the hero and the closing
+     section: asked directly for the whole page to sit in the middle,
+     not part of it. The grids below (highlight cards, bug cards) are
+     already symmetric once they fill the full centered .about-wrap, so
+     a centered heading above them now reads as consistent top to
+     bottom instead of switching between left and centered partway
+     down the page. */
+  text-align: center;
 }
 
 .about-prose {
@@ -1940,6 +1942,15 @@ body.page-stale > *:not(#disconnected-banner) {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
+}
+/* With an odd number of cards, the last one would otherwise sit alone
+   in the left column with empty space beside it, exactly the kind of
+   lopsided ending that reads as "not centered." Spanning it across
+   both columns instead keeps the grid looking deliberate all the way
+   through. Only fires when the count actually IS odd -- harmless, not
+   applied, the day this list has an even number of items. */
+.highlight-item:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 @media (max-width: 640px) {
   .highlight-list {
@@ -2055,6 +2066,7 @@ body.page-stale > *:not(#disconnected-banner) {
 .stack-row {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 0.5rem;
 }
 .stack-pill {
@@ -2074,29 +2086,13 @@ body.page-stale > *:not(#disconnected-banner) {
   margin-top: 1.25rem;
 }
 
-/* Modifier for the two narrative "bookend" sections (the opening
-   premise paragraph, the closing call to action) that pairs with the
-   centered hero above: their header, prose, and buttons all center as
-   one column, instead of a left-aligned heading sitting above a now-
-   centered paragraph. The sections in between (highlights, bugs,
-   architecture, stack) stay left-aligned on purpose -- they sit above
-   full-width grids, and a centered heading over a left-to-right grid
-   would look mismatched rather than tidy. */
-.about-centered .zone-header {
-  text-align: center;
-}
+/* The closing section's button row specifically: every section header
+   centers on its own now (see .about-section .zone-header above), but
+   a flex row of buttons still needs to be told to center itself
+   explicitly rather than sitting flush left under its now-centered
+   heading. */
 .about-centered .about-cta-row {
   justify-content: center;
-}
-
-.about-footer {
-  padding: 2rem 0 2.5rem;
-  border-top: 1px solid var(--border);
-}
-.about-footer p {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  margin: 0;
 }
 
 /* The header's own new nav button to this page, alongside the existing
