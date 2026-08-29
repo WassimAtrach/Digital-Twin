@@ -367,21 +367,15 @@ class Network:
     """
 
     def __init__(self) -> None:
-        # Boots into the hardened mode, not the unauthenticated one.
-        # There is deliberately no database here (see this module's own
-        # docstring): state, including this field, resets on every
-        # server restart. On a public deployment that isn't just "run
-        # once and demo it," a restart isn't a rare event, a free host's
-        # instance spins down after inactivity and cold-starts fresh on
-        # the next request, so "legacy" as the default meant the FIRST
-        # thing any visitor after an idle period actually saw was the
-        # fully unauthenticated mode, before anyone had deliberately
-        # chosen to demonstrate it. An operator running the live demo
-        # script (see README.md) still switches into Legacy Retrofit
-        # deliberately, on purpose, to show the vulnerable state; a
-        # visitor who just opens the link no longer lands there by
-        # default.
-        self.mode: str = "secure"  # "legacy" | "secure"
+        # Boots into the unauthenticated mode, not the hardened one:
+        # requested directly so a visitor's first view of the live demo
+        # is the vulnerable state (what the attack console demonstrates
+        # first), not the already-defended one. There is deliberately no
+        # database here (see this module's own docstring): state,
+        # including this field, resets on every server restart, so this
+        # is genuinely the boot default, not just the initial value for
+        # one session.
+        self.mode: str = "legacy"  # "legacy" | "secure"
         self.intersections: dict = _build_intersections()
         # Star topology: the hub connects to each of the other four.
         self.edges: list = [

@@ -843,13 +843,10 @@ what literally goes out over the wire.
 ## Live demo script
 
 1. **Normal operation.** Open the dashboard. Five junctions, all healthy,
-   queues low and stable, KPIs in a comfortable range. Mode boots into "ITC
-   Secure Integration" by default (see `Network.__init__` in `network.py` for
-   why: a public deployment can restart at any time, a free host's instance
-   cold-starts after being idle, so the unauthenticated mode is something an
-   operator deliberately switches into for the demo below, not what a visitor
-   who just opens the link happens to land in). Flip the switch, top-right, to
-   "Legacy Retrofit" to begin the script.
+   queues low and stable, KPIs in a comfortable range. Mode boots into "Legacy
+   Retrofit" by default (see `Network.__init__` in `network.py`), so the
+   network is already running unauthenticated, exactly the state the attack
+   below needs, with nothing to switch first.
 2. **Point out Kaplan-Begin and Namir-Einstein running busier.** Click either
    junction; the detail card shows its real, cited traffic-volume source, and
    its queue bars run measurably higher than Rokach-Yehudit's over time — the
