@@ -78,7 +78,31 @@ GAP_OUT_QUEUE_THRESHOLD = 0.5
 # network is oversaturated by construction and queues grow even with no
 # attack running, which muddies the demo (nothing should look "under
 # attack" until something actually attacks it).
-SERVICE_RATE_PER_TICK = 1.5
+#
+# Was 1.5, which only ever had real headroom against roughly the
+# 1.0-1.2x band of tel_aviv_data.py's HOURLY_TRAFFIC_MULTIPLIER, not the
+# full 24-hour curve's actual range up to 3.0x (17:00, the real evening
+# peak) -- reported live and reproduced from a clean reset with zero
+# attacks running: hour 16 (only 1.9x, not even the peak) climbed
+# multiple junctions to 100% within 30 real seconds and stayed there,
+# purely from organic traffic. The math behind why: at 1.5, average
+# service rate per approach is only ~0.375 vehicles/sec (1.5 x 0.5
+# green-time fraction / ORCHESTRATOR_TICK_SECONDS), which real arrival
+# rate already matches or exceeds above roughly a 2x multiplier -- and
+# because congestion_index() reads the single worst approach, not an
+# average, ordinary random variance in normal traffic is enough to tip
+# one approach into that regime well before the network-wide average
+# would suggest trouble, exactly what a live 15-second-interval sample
+# confirmed (100% network congestion by t=30s, sustained through t=90s).
+# 4.0 targets real headroom even at the genuine worst case (17:00's 3.0x
+# multiplier, on Kaplan-Begin's 1.3x real-world calibration factor,
+# where arrival probability is already clamped to 1.0 -- guaranteed
+# demand every tick): that works out to needing at least ~1.0 vehicles/
+# sec of average service capacity per approach to keep real headroom,
+# which requires SERVICE_RATE_PER_TICK >= 4.0. Verified live afterward
+# across the actual hours that matter (a normal hour, 16:00, and 17:00,
+# the real peak), not just by this arithmetic alone.
+SERVICE_RATE_PER_TICK = 4.0
 
 # How long a granted emergency preemption holds its phase, and how often
 # a fresh preemption can be granted at all; bounding both limits the

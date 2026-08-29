@@ -1246,7 +1246,7 @@ function runRestoreAll() {
       disarmGuidedResponse();
       showSuccessFlash(playbookRestoreAllEl);
       showMitigationToast(
-        "✅ All 5 junctions handed back to the AI orchestrator — congestion clears over the next ~30 seconds, not instantly."
+        "✅ All 5 junctions handed back to the AI orchestrator — congestion clears over the next ~15 seconds, not instantly."
       );
     });
 }

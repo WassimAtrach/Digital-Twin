@@ -402,23 +402,29 @@ decisions. Verified live: phase sampled every 300ms for 15 samples straight
 showed `ALL_RED` the entire ~3.7s before flipping — a real, dependable
 "something happened" moment now, not a coin flip.
 
-**Then calm down over ~30 seconds — real service, not a scripted countdown.**
-`restore_all` deliberately does not touch `queues` at all. Once the hold
-above expires, the AI orchestrator resumes completely normal control:
-`_decide_phase` picks a phase from the still-elevated queues, and
+**Then calm down over roughly 15 seconds — real service, not a scripted
+countdown.** `restore_all` deliberately does not touch `queues` at all. Once
+the hold above expires, the AI orchestrator resumes completely normal
+control: `_decide_phase` picks a phase from the still-elevated queues, and
 `_serve_green_approaches` drains them at the same `SERVICE_RATE_PER_TICK`
 that governs every other queue in this simulation, alternating NS/EW every
 `MIN_GREEN_SECONDS`. No new congestion-decay mechanism was built — the
 existing physics does this on its own once nothing is artificially blocking
-it. Verified live, worst case first (all 4 approaches of all 5 junctions
-saturated, well beyond what a realistic attack produces): congestion took
-over 30 seconds to meaningfully clear, confirming that scenario really is
-extreme. A realistic Coordinated attack (one approach per junction, what the
-actual UI checkbox produces) told a cleaner story: 100% congested → roughly
-25-60% by the 30-second mark across repeated runs (natural run-to-run
-variance from the ML predictor and organic traffic, not a bug) — a clear,
-substantial, watchable decline in the requested window, using the
-simulation's own real mechanics the whole way.
+it.
+
+`SERVICE_RATE_PER_TICK` itself changed after this section was first written
+(1.5 → 4.0, see orchestrator.py's own comment on that constant for the full
+story: a real deployment left running past a normal-traffic hour organically
+gridlocked multiple junctions to 100% with zero attacks running, because 1.5
+only ever had headroom against roughly a 1.0-1.2x traffic multiplier, not the
+full 24-hour curve's real range up to 3.0x). Re-verified live after that fix,
+spiking three junctions to 100% first: congestion held at 100% through the
+guaranteed `RECOVERY_HOLD_SECONDS` window, dropped to 62.5% by t=6-9s, 25% by
+t=12s, and settled into a calm, still-naturally-fluctuating 12.5-37.5% range
+from t=15s onward — a clear, substantial, watchable decline, meaningfully
+faster than the original ~30-second figure this section used to cite,
+because the underlying service rate that drains every queue in this
+simulation, not just restore_all's, is now itself different.
 
 ## Ground-truth arrivals: isolation blocks the channel, not reality
 
