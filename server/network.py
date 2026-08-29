@@ -20,6 +20,7 @@ from collections import OrderedDict, deque
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import ml_predictor
 import tel_aviv_data
@@ -49,6 +50,27 @@ VALID_PHASES = {"NS_GREEN", "EW_GREEN", "ALL_RED"}
 # once) turned recovery into a minute-plus of the number looking
 # completely frozen.
 MAX_QUEUE_PER_APPROACH = 8.0
+
+# A second, LOWER ceiling that applies only to organic traffic (the real
+# camera network's own reports, and orchestrator.py's ground-truth
+# arrivals while a junction is isolated -- both model real, non-attack
+# traffic) -- requested directly, so that a junction actually reaching
+# 100% (MAX_QUEUE_PER_APPROACH above) becomes a reliable signal that
+# something other than ordinary traffic caused it, not something heavy
+# organic rush-hour demand could also produce on its own now that
+# SERVICE_RATE_PER_TICK has real headroom even at the busiest hour (see
+# orchestrator.py's comment on that constant). An attack's own telemetry
+# is not capped by this at all, still able to reach the full
+# MAX_QUEUE_PER_APPROACH: see main.py's apply_telemetry, which applies
+# this ceiling only when a report's source is genuinely
+# detection.py's CAMERA_NETWORK_SOURCE. This can't be gamed by an
+# attacker claiming that same source string instead of their own,
+# since doing so only gets them the LOWER ceiling, never the higher
+# one -- and in Secure mode it's moot regardless, since only the real
+# camera network can produce a validly-signed report with that source
+# at all. 7.0 (87.5% of MAX_QUEUE_PER_APPROACH) sits in the middle of
+# the requested "80-90% at worst" range.
+MAX_ORGANIC_QUEUE_PER_APPROACH = 7.0
 
 # Hard ceiling on Intersection.pending_tick_arrivals -- the ML predictor's
 # training TARGET for one tick, applied at the point of accumulation in
@@ -383,12 +405,26 @@ class Network:
         self.request_log: deque = deque(maxlen=5000)
         # Time-of-day control (see tel_aviv_data.py's HOURLY_TRAFFIC_
         # MULTIPLIER): which hour of the day, 0-23, the simulation
-        # currently models. Defaults to the real current hour, purely so
-        # the demo starts out matching whatever is actually happening
-        # outside right now; nothing else here depends on wall-clock
-        # time, and this is just a starting point, freely changeable via
-        # /api/hour.
-        self.simulated_hour: int = datetime.now().hour
+        # currently models. Defaults to the real current hour in Tel
+        # Aviv specifically (Asia/Jerusalem, which zoneinfo resolves
+        # correctly across DST changes on its own), not
+        # datetime.now()'s bare, timezone-naive reading of whatever
+        # timezone the machine actually running this process happens to
+        # be set to. That distinction didn't matter for local
+        # development (the same machine as whoever's watching), but
+        # does once this runs on a real host: a free tier's server is
+        # commonly UTC by default, so a viewer in Israel (UTC+3 in
+        # summer) was seeing the dashboard open 3 hours behind their own
+        # actual local time, reported directly and reproduced exactly
+        # (dashboard read 16:00 against an actual local time of 19:00).
+        # Pinned specifically to Tel Aviv rather than reading the
+        # viewer's own timezone (this server has no per-visitor
+        # timezone to read anyway, see the single-shared-network
+        # architecture note elsewhere in this project) because that's
+        # what the whole simulation already models: nothing else here
+        # depends on wall-clock time, and this is just a starting point,
+        # freely changeable via /api/hour regardless.
+        self.simulated_hour: int = datetime.now(ZoneInfo("Asia/Jerusalem")).hour
         # Derived from simulated_hour, and scales detection.py's arrival
         # probability the same way the old fixed Light/Normal/Rush Hour
         # control used to. Cached rather than recomputed on every read;

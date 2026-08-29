@@ -37,7 +37,7 @@ import random
 import time
 
 from detection import ARRIVAL_PROBABILITY
-from network import APPROACHES, MAX_QUEUE_PER_APPROACH
+from network import APPROACHES, MAX_ORGANIC_QUEUE_PER_APPROACH, MAX_QUEUE_PER_APPROACH
 from security import sign_command
 
 logger = logging.getLogger(__name__)
@@ -247,7 +247,13 @@ def _accumulate_ground_truth_arrivals(network, intersection) -> None:
     for approach in APPROACHES:
         if random.random() <= effective_probability:
             updated = intersection.queues[approach] + 1.0
-            intersection.queues[approach] = min(updated, MAX_QUEUE_PER_APPROACH)
+            # MAX_ORGANIC_QUEUE_PER_APPROACH, not MAX_QUEUE_PER_APPROACH:
+            # this function only ever models real, non-attack traffic
+            # (see its own docstring), so it gets the same lower organic
+            # ceiling main.py's apply_telemetry applies to the real
+            # camera network's own reports -- see network.py's constant
+            # for the full reasoning.
+            intersection.queues[approach] = min(updated, MAX_ORGANIC_QUEUE_PER_APPROACH)
 
 
 async def _process_intersection(network, intersection, now: float, apply_command_fn) -> None:

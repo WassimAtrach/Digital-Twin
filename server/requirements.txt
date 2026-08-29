@@ -4,3 +4,18 @@
 fastapi>=0.115
 uvicorn[standard]>=0.32
 requests>=2.32
+
+# network.py reads the current hour in Asia/Jerusalem via zoneinfo, so
+# the default Time of Day control matches Tel Aviv regardless of which
+# timezone the deployment host's own system happens to be set to (see
+# that constant's own comment for why). zoneinfo needs an actual IANA
+# time zone database to resolve a name like "Asia/Jerusalem" against,
+# and unlike most Linux distributions, neither Windows nor every
+# minimal container base image ships one -- confirmed directly: this
+# raised ZoneInfoNotFoundError on this project's own Windows dev
+# machine the moment it was added, without this package installed.
+# tzdata is pure IANA data with no compiled code, published specifically
+# to make zoneinfo reliable on platforms that don't already have a
+# system database, which is why the standard library docs themselves
+# recommend it for exactly this case.
+tzdata>=2024.1

@@ -31,9 +31,16 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from detection import ARRIVAL_PROBABILITY, detection_loop
+from detection import ARRIVAL_PROBABILITY, CAMERA_NETWORK_SOURCE, detection_loop
 from forecast import forecast_congestion
-from network import APPROACHES, MAX_QUEUE_PER_APPROACH, MAX_TRAINING_ARRIVAL_COUNT, VALID_PHASES, network
+from network import (
+    APPROACHES,
+    MAX_ORGANIC_QUEUE_PER_APPROACH,
+    MAX_QUEUE_PER_APPROACH,
+    MAX_TRAINING_ARRIVAL_COUNT,
+    VALID_PHASES,
+    network,
+)
 from orchestrator import ISOLATION_SECONDS, RECOVERY_HOLD_SECONDS, orchestrator_loop
 from security import (
     COMMAND_RATE_LIMIT_MAX,
@@ -455,8 +462,16 @@ async def apply_telemetry(
         # stacked) would otherwise leave a fake backlog that takes many
         # minutes of real service time to drain. Still a clear, visible
         # spike below the cap, just not an effectively-permanent one.
+        #
+        # The cap itself depends on whether this report is actually from
+        # the real camera network: see network.py's MAX_ORGANIC_QUEUE_
+        # PER_APPROACH for why organic traffic gets a lower ceiling than
+        # an attack can still reach -- this is what makes 100% congestion
+        # a reliable "something attacked this" signal rather than
+        # something heavy rush-hour demand could also produce alone.
         updated = intersection.queues.get(approach, 0.0) + count
-        intersection.queues[approach] = min(updated, MAX_QUEUE_PER_APPROACH)
+        queue_cap = MAX_ORGANIC_QUEUE_PER_APPROACH if source == CAMERA_NETWORK_SOURCE else MAX_QUEUE_PER_APPROACH
+        intersection.queues[approach] = min(updated, queue_cap)
         # Feeds the ML arrival predictor's training data (see detection.
         # py's harvest step and ml_predictor.py), which should learn the
         # true claimed demand, not an artifact of the display cap above
