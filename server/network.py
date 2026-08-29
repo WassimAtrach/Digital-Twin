@@ -16,7 +16,7 @@ which is fine (convenient, even) for a demo that gets run repeatedly.
 from __future__ import annotations
 
 import time
-from collections import deque
+from collections import OrderedDict, deque
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Optional
@@ -49,6 +49,36 @@ VALID_PHASES = {"NS_GREEN", "EW_GREEN", "ALL_RED"}
 # once) turned recovery into a minute-plus of the number looking
 # completely frozen.
 MAX_QUEUE_PER_APPROACH = 8.0
+
+# Hard ceiling on Intersection.pending_tick_arrivals -- the ML predictor's
+# training TARGET for one tick, applied at the point of accumulation in
+# main.py's apply_telemetry, separate from (and much larger than)
+# MAX_QUEUE_PER_APPROACH above. This field was deliberately left fully
+# uncapped for a real reason (see its own field docstring: it should
+# learn the true claimed demand, not an artifact of the display cap),
+# but "uncapped" turned out to mean exactly that: a single Legacy-mode
+# telemetry report at the maximum count Pydantic allows (100,000, see
+# main.py's TelemetryRequest) fed directly into
+# ml_predictor.ArrivalPredictor.partial_fit as the actual-outcome target,
+# and because that model is SHARED across every junction and approach,
+# one such report corrupted predicted_arrivals for all five junctions at
+# once, confirmed live: every junction's predicted arrivals jumped into
+# the thousands after a single request, not just the attacked one, and
+# large enough single updates can drive weights to float overflow (inf/
+# nan) with no way back short of a server restart, since nan poisons
+# every arithmetic operation it touches from then on. Ordinary gradient
+# descent has no built-in resistance to one extreme outlier; nothing
+# about learning_rate or WEIGHT_DECAY (see ml_predictor.py) bounds a
+# single update's size, only how fast repeated ones accumulate.
+#
+# This cap keeps the original intent intact -- the model still learns
+# "this was reported as an extreme, anomalous spike," clearly
+# distinguishable from real traffic (which essentially never exceeds a
+# couple of vehicles in one tick, even a platooned rush-hour one, see
+# detection.py's ARRIVAL_PROBABILITY and platoon logic) -- without
+# feeding gradient descent a value four to five orders of magnitude
+# larger than anything its learning rate was ever tuned against.
+MAX_TRAINING_ARRIVAL_COUNT = 50.0
 
 SECURITY_EVENT_HISTORY_LIMIT = 200
 OPS_LOG_HISTORY_LIMIT = 100
@@ -154,7 +184,18 @@ class Intersection:
     # self-inflicted collateral denial of service that defeated the
     # point, caught by testing this against real orchestrator traffic
     # immediately after a simulated flood, not by inspection.
-    recent_accepted_commands_by_source: dict = field(default_factory=dict)
+    #
+    # OrderedDict, not a plain dict: `source` is attacker-controlled and
+    # only bounded to 64 characters (see main.py's CommandRequest), not
+    # to any particular set of values, so without eviction an attacker
+    # sending a fresh, never-repeated source on every request grows this
+    # forever, one orphaned entry per request, for as long as the server
+    # runs -- a real unbounded-memory DoS surface on a public deployment,
+    # found reviewing the code before one, not from a live incident. See
+    # security.py's touch_bounded_source, which main.py's apply_command
+    # calls on every insert/update here to evict the least-recently-used
+    # source once this holds more than MAX_TRACKED_SOURCES distinct ones.
+    recent_accepted_commands_by_source: OrderedDict = field(default_factory=OrderedDict)
 
     def is_isolated(self) -> bool:
         return self.isolated_until is not None and time.time() < self.isolated_until
@@ -304,7 +345,21 @@ class Network:
     """
 
     def __init__(self) -> None:
-        self.mode: str = "legacy"  # "legacy" | "secure"
+        # Boots into the hardened mode, not the unauthenticated one.
+        # There is deliberately no database here (see this module's own
+        # docstring): state, including this field, resets on every
+        # server restart. On a public deployment that isn't just "run
+        # once and demo it," a restart isn't a rare event, a free host's
+        # instance spins down after inactivity and cold-starts fresh on
+        # the next request, so "legacy" as the default meant the FIRST
+        # thing any visitor after an idle period actually saw was the
+        # fully unauthenticated mode, before anyone had deliberately
+        # chosen to demonstrate it. An operator running the live demo
+        # script (see README.md) still switches into Legacy Retrofit
+        # deliberately, on purpose, to show the vulnerable state; a
+        # visitor who just opens the link no longer lands there by
+        # default.
+        self.mode: str = "secure"  # "legacy" | "secure"
         self.intersections: dict = _build_intersections()
         # Star topology: the hub connects to each of the other four.
         self.edges: list = [
@@ -505,7 +560,9 @@ class Network:
         }
         intersection.pending_tick_arrivals = {approach: 0.0 for approach in APPROACHES}
         intersection.predicted_arrivals = {approach: 0.0 for approach in APPROACHES}
-        intersection.recent_accepted_commands_by_source = {}
+        # OrderedDict, not {}: touch_bounded_source (security.py) calls
+        # .move_to_end() on this, which a plain dict doesn't have.
+        intersection.recent_accepted_commands_by_source = OrderedDict()
         return True
 
     def reset_all(self, mode: Optional[str] = None) -> None:

@@ -32,12 +32,15 @@ same signed-command path an attacker has to forge (see main.py).
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 import time
 
 from detection import ARRIVAL_PROBABILITY
 from network import APPROACHES, MAX_QUEUE_PER_APPROACH
 from security import sign_command
+
+logger = logging.getLogger(__name__)
 
 ORCHESTRATOR_TICK_SECONDS = 2.0
 MIN_GREEN_SECONDS = 6.0
@@ -223,91 +226,122 @@ def _accumulate_ground_truth_arrivals(network, intersection) -> None:
             intersection.queues[approach] = min(updated, MAX_QUEUE_PER_APPROACH)
 
 
+async def _process_intersection(network, intersection, now: float, apply_command_fn) -> None:
+    """One junction's worth of orchestrator_loop's per-tick work,
+    pulled out into its own function so orchestrator_loop can wrap a
+    single call in try/except (see its own comment for why) instead of
+    a large reindent of this logic.
+    """
+    if intersection.isolated_until is not None:
+        if now < intersection.isolated_until:
+            # Still isolated: no signal decision this tick, but
+            # real traffic doesn't stop existing just because
+            # the sensor feed is untrusted -- see
+            # _accumulate_ground_truth_arrivals's own docstring.
+            _accumulate_ground_truth_arrivals(network, intersection)
+            return
+        # Cooldown just expired: recover and fall through to a
+        # normal decision below, starting from a clean ALL_RED.
+        intersection.isolated_until = None
+        intersection.alarm = None
+        intersection.phase = "ALL_RED"
+        intersection.phase_since = now
+        network.log_security(
+            "good",
+            intersection.id,
+            "recovered",
+            f"{intersection.name} recovered from isolation: resuming normal AI-orchestrated control",
+        )
+
+    if intersection.alarm in ("COLLISION_RISK", "FAILSAFE"):
+        # Both need a human decision, not the AI quietly
+        # resuming control: COLLISION_RISK is an unresolved
+        # legacy-mode attack (same as a real conflict-monitor
+        # trip). FAILSAFE covers two different real situations
+        # that happen to share one flag -- an auto-isolated
+        # junction (isolated_until also set, already held by the
+        # check above, so reaching here means the isolation
+        # cooldown just ended and recovery already ran this same
+        # tick) and an operator's manual Fail-Safe Flash
+        # (isolated_until never set for that one at all, only
+        # alarm). Before this check existed, a manual Fail-Safe
+        # Flash was silently overwritten by the very next
+        # orchestrator tick: _decide_phase() sees ALL_RED, which
+        # isn't NS_GREEN/EW_GREEN, and picks a fresh green phase
+        # for it exactly as if the junction had just been reset,
+        # clearing the alarm and undoing the operator's action
+        # within ~2 seconds -- confirmed live (phase/alarm
+        # checked immediately after the click, then 3 seconds
+        # later) before this fix, not assumed. A held FAILSAFE
+        # still recovers exactly once its actual cause clears:
+        # either the isolation cooldown expires and the block
+        # above runs, or an operator clicks Restore, which
+        # resets alarm to None and hands control back.
+        return
+
+    if intersection.recovery_hold_until is not None:
+        if now < intersection.recovery_hold_until:
+            # Guaranteed ALL_RED window after restore_all (see
+            # RECOVERY_HOLD_SECONDS): alarm/isolation are
+            # already cleared by the time this runs, so without
+            # this check _decide_phase would treat ALL_RED as
+            # "fresh start, pick a phase now" on whichever tick
+            # happens to land next -- anywhere from ~0 to
+            # ORCHESTRATOR_TICK_SECONDS after the click, purely
+            # by chance, making "turn everything red" sometimes
+            # barely visible. Real congestion still keeps
+            # accumulating normally here (queues are untouched
+            # by restore_all on purpose), this only holds the
+            # PHASE decision, not traffic itself.
+            return
+        intersection.recovery_hold_until = None
+
+    desired_phase = _decide_phase(intersection, now)
+    if desired_phase != intersection.phase:
+        signature = sign_command(desired_phase, now)
+        await apply_command_fn(
+            intersection_id=intersection.id,
+            phase=desired_phase,
+            timestamp=now,
+            signature=signature,
+            source="itc-orchestrator",
+            broadcast_result=False,
+        )
+
+    served = _serve_green_approaches(intersection)
+    for amount in served.values():
+        network.record_served(amount)
+
+
 async def orchestrator_loop(network, apply_command_fn, broadcast_fn) -> None:
     while True:
         await asyncio.sleep(ORCHESTRATOR_TICK_SECONDS)
         now = time.time()
 
         for intersection in network.intersections.values():
-            if intersection.isolated_until is not None:
-                if now < intersection.isolated_until:
-                    # Still isolated: no signal decision this tick, but
-                    # real traffic doesn't stop existing just because
-                    # the sensor feed is untrusted -- see
-                    # _accumulate_ground_truth_arrivals's own docstring.
-                    _accumulate_ground_truth_arrivals(network, intersection)
-                    continue
-                # Cooldown just expired: recover and fall through to a
-                # normal decision below, starting from a clean ALL_RED.
-                intersection.isolated_until = None
-                intersection.alarm = None
-                intersection.phase = "ALL_RED"
-                intersection.phase_since = now
-                network.log_security(
-                    "good",
+            try:
+                await _process_intersection(network, intersection, now, apply_command_fn)
+            except Exception:
+                # A bare `while True` loop with no guard around its body
+                # dies permanently the instant anything inside it raises:
+                # asyncio just logs "Task exception was never retrieved"
+                # and the task quietly ends, no crash, no restart, the
+                # rest of the server (the API, the WebSocket, the
+                # dashboard) keeps responding completely normally while
+                # the AI silently stops making any decisions at all,
+                # forever, with nothing surfacing that anything is wrong
+                # -- found reviewing this file end to end before a public
+                # deploy, not from a specific known bug in the body
+                # below, but a public, always-on deployment (unlike a
+                # local demo restarted every session) can't rely on
+                # never hitting an edge case this hasn't already been
+                # tested against. One junction's unexpected failure is
+                # logged and skipped for this tick; every other
+                # junction, and every future tick, keeps running.
+                logger.exception(
+                    "orchestrator_loop: unexpected error processing %s, skipping this tick for it",
                     intersection.id,
-                    "recovered",
-                    f"{intersection.name} recovered from isolation: resuming normal AI-orchestrated control",
                 )
-
-            if intersection.alarm in ("COLLISION_RISK", "FAILSAFE"):
-                # Both need a human decision, not the AI quietly
-                # resuming control: COLLISION_RISK is an unresolved
-                # legacy-mode attack (same as a real conflict-monitor
-                # trip). FAILSAFE covers two different real situations
-                # that happen to share one flag -- an auto-isolated
-                # junction (isolated_until also set, already held by the
-                # check above, so reaching here means the isolation
-                # cooldown just ended and recovery already ran this same
-                # tick) and an operator's manual Fail-Safe Flash
-                # (isolated_until never set for that one at all, only
-                # alarm). Before this check existed, a manual Fail-Safe
-                # Flash was silently overwritten by the very next
-                # orchestrator tick: _decide_phase() sees ALL_RED, which
-                # isn't NS_GREEN/EW_GREEN, and picks a fresh green phase
-                # for it exactly as if the junction had just been reset,
-                # clearing the alarm and undoing the operator's action
-                # within ~2 seconds -- confirmed live (phase/alarm
-                # checked immediately after the click, then 3 seconds
-                # later) before this fix, not assumed. A held FAILSAFE
-                # still recovers exactly once its actual cause clears:
-                # either the isolation cooldown expires and the block
-                # above runs, or an operator clicks Restore, which
-                # resets alarm to None and hands control back.
-                continue
-
-            if intersection.recovery_hold_until is not None:
-                if now < intersection.recovery_hold_until:
-                    # Guaranteed ALL_RED window after restore_all (see
-                    # RECOVERY_HOLD_SECONDS): alarm/isolation are
-                    # already cleared by the time this runs, so without
-                    # this check _decide_phase would treat ALL_RED as
-                    # "fresh start, pick a phase now" on whichever tick
-                    # happens to land next -- anywhere from ~0 to
-                    # ORCHESTRATOR_TICK_SECONDS after the click, purely
-                    # by chance, making "turn everything red" sometimes
-                    # barely visible. Real congestion still keeps
-                    # accumulating normally here (queues are untouched
-                    # by restore_all on purpose), this only holds the
-                    # PHASE decision, not traffic itself.
-                    continue
-                intersection.recovery_hold_until = None
-
-            desired_phase = _decide_phase(intersection, now)
-            if desired_phase != intersection.phase:
-                signature = sign_command(desired_phase, now)
-                await apply_command_fn(
-                    intersection_id=intersection.id,
-                    phase=desired_phase,
-                    timestamp=now,
-                    signature=signature,
-                    source="itc-orchestrator",
-                    broadcast_result=False,
-                )
-
-            served = _serve_green_approaches(intersection)
-            for amount in served.values():
-                network.record_served(amount)
 
         network.sample_congestion(now)
         await broadcast_fn()

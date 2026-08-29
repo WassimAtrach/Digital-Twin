@@ -72,6 +72,7 @@ import hashlib
 import hmac
 import os
 import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -159,6 +160,44 @@ BLOCK_DURATION_SECONDS = 30.0
 # orchestrator's own genuinely busy traffic.
 COMMAND_RATE_LIMIT_MAX = 5
 COMMAND_RATE_LIMIT_WINDOW_SECONDS = 5.0
+
+# How many distinct `source` identities any per-source tracking structure
+# in this project holds onto at once (this module's own ThreatTracker.
+# failed_attempts below, and network.py's Intersection.recent_accepted_
+# commands_by_source). `source` is an attacker-controlled string (see
+# main.py's CommandRequest/TelemetryRequest: bounded to 64 characters,
+# not to any particular set of values), so without a cap, an attacker who
+# sends every request with a fresh, never-repeated source string grows
+# either structure forever -- a real unbounded-memory DoS surface once
+# this runs as a long-lived public deployment instead of a local demo
+# restarted every session, distinct from and not covered by any of this
+# project's deliberately-modeled attack classes (found reviewing the
+# code before a public deploy, not from any live incident). Sized
+# generously above how many real, legitimate sources this demo ever
+# actually has open at once (itc-orchestrator, itc-camera-network, one
+# simulated console attacker address, attacker.py's default source -- a
+# handful), so real traffic is in no realistic danger of evicting itself.
+MAX_TRACKED_SOURCES = 200
+
+
+def touch_bounded_source(tracker: OrderedDict, source: str) -> None:
+    """Marks `source` as just-used in `tracker` (an OrderedDict whose
+    entry for `source` the caller has already inserted or updated),
+    moving it to the most-recently-used end, then evicts the least-
+    recently-used entry if `tracker` now holds more than
+    MAX_TRACKED_SOURCES distinct keys.
+
+    Shared by ThreatTracker.record_failure below and main.py's
+    apply_command, the two places that track state per attacker-
+    controlled source: a source in real, ongoing use is never the one
+    evicted, since using it moves it to the safe end of the eviction
+    queue every time; only a source that stopped being used a while ago
+    -- exactly what a disposable, one-shot attacker identity looks like
+    -- is ever actually dropped.
+    """
+    tracker.move_to_end(source)
+    while len(tracker) > MAX_TRACKED_SOURCES:
+        tracker.popitem(last=False)
 
 
 def _sign(key: bytes, payload: str) -> str:
@@ -282,9 +321,21 @@ class ThreatTracker:
     for a real IDS/IPS's temporary ban.
     """
 
-    failed_attempts: dict = field(default_factory=dict)
+    # OrderedDict, not a plain dict, so touch_bounded_source (see its own
+    # docstring above) can track and evict by least-recently-used order.
+    failed_attempts: OrderedDict = field(default_factory=OrderedDict)
     # source -> epoch time its block expires. A dict rather than a set
-    # so each source's block can expire independently.
+    # so each source's block can expire independently. Not itself capped
+    # by touch_bounded_source, unlike failed_attempts: every entry here
+    # is swept out the moment it expires by blocked_sources below, which
+    # scans the *entire* dict (not just one looked-up key) and runs on
+    # essentially every network snapshot, roughly every 2 real seconds,
+    # regardless of whether that specific source is ever seen again. So
+    # this dict's size is already naturally bounded by (rate new blocks
+    # are created) x BLOCK_DURATION_SECONDS, not by an unbounded backlog
+    # of entries nobody ever revisits, which is exactly the gap
+    # touch_bounded_source closes for failed_attempts (only cleaned up
+    # lazily, when-and-if that same source is looked up again).
     _blocked_until: dict = field(default_factory=dict)
 
     def is_blocked(self, source: str) -> bool:
@@ -315,6 +366,7 @@ class ThreatTracker:
         exactly once instead of on every subsequent attempt.
         """
         self.failed_attempts[source] = self.failed_attempts.get(source, 0) + 1
+        touch_bounded_source(self.failed_attempts, source)
         if self.failed_attempts[source] >= MAX_FAILED_ATTEMPTS and source not in self._blocked_until:
             self._blocked_until[source] = time.time() + BLOCK_DURATION_SECONDS
             return True

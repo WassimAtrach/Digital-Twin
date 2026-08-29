@@ -27,13 +27,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from detection import ARRIVAL_PROBABILITY, detection_loop
 from forecast import forecast_congestion
-from network import APPROACHES, MAX_QUEUE_PER_APPROACH, VALID_PHASES, network
+from network import APPROACHES, MAX_QUEUE_PER_APPROACH, MAX_TRAINING_ARRIVAL_COUNT, VALID_PHASES, network
 from orchestrator import ISOLATION_SECONDS, RECOVERY_HOLD_SECONDS, orchestrator_loop
 from security import (
     COMMAND_RATE_LIMIT_MAX,
@@ -41,6 +41,7 @@ from security import (
     ConflictMonitor,
     is_plausible_telemetry,
     is_rate_limited,
+    touch_bounded_source,
     verify_command_signature,
     verify_telemetry_signature,
 )
@@ -85,7 +86,18 @@ class TelemetryRequest(BaseModel):
     intersection_id: str = Field(..., max_length=64)
     approach: str = Field(..., max_length=8)
     road_user_type: str = Field(default="car", max_length=32)
-    count: int = Field(default=1, ge=1, le=100_000)
+    # 1000, not the 100,000 this used to allow: the attack console's own
+    # UI field (see index.html's #attack-count) already caps its input
+    # at 500, so nothing legitimate, including the demo's own attacks,
+    # was ever using anywhere near the old ceiling -- it was only ever
+    # reachable by bypassing the UI entirely (curl, attacker.py, a
+    # modified request), exactly the population this whole app models.
+    # A second, independent layer on top of network.py's
+    # MAX_TRAINING_ARRIVAL_COUNT (which bounds what a report can do once
+    # accepted): this bounds what gets accepted at the API boundary at
+    # all, before it reaches any downstream logic, defense in depth
+    # rather than relying on a single cap to catch everything.
+    count: int = Field(default=1, ge=1, le=1000)
     timestamp: Optional[float] = Field(default=None)
     signature: Optional[str] = Field(default=None, max_length=128)
     source: str = Field(default="unknown", max_length=64)
@@ -288,9 +300,18 @@ async def apply_command(
     # attacker could also exhaust the real AI orchestrator's own budget
     # for that junction, a self-inflicted collateral denial of service.
     # Found by testing this exact scenario, not by inspection.
-    source_command_times = intersection.recent_accepted_commands_by_source.setdefault(
-        source, deque(maxlen=COMMAND_RATE_LIMIT_MAX)
-    )
+    #
+    # touch_bounded_source, not a bare setdefault: source is attacker-
+    # controlled, so without eviction this dict grows one orphaned entry
+    # per never-repeated source forever (see network.py's field comment
+    # and security.py's touch_bounded_source docstring for the full
+    # reasoning). Called on every lookup, not just on first creation, so
+    # a source in real, ongoing use keeps refreshing its own place at the
+    # safe end of the eviction order.
+    if source not in intersection.recent_accepted_commands_by_source:
+        intersection.recent_accepted_commands_by_source[source] = deque(maxlen=COMMAND_RATE_LIMIT_MAX)
+    source_command_times = intersection.recent_accepted_commands_by_source[source]
+    touch_bounded_source(intersection.recent_accepted_commands_by_source, source)
     if network.mode == "secure" and is_rate_limited(source_command_times, time.time()):
         just_blocked = network.threats.record_failure(source)
         network.log_security(
@@ -436,15 +457,24 @@ async def apply_telemetry(
         # spike below the cap, just not an effectively-permanent one.
         updated = intersection.queues.get(approach, 0.0) + count
         intersection.queues[approach] = min(updated, MAX_QUEUE_PER_APPROACH)
-        # Uncapped, unlike the queue above: this feeds the ML arrival
-        # predictor's training data (see detection.py's harvest step and
-        # ml_predictor.py), which should learn the true claimed demand,
-        # not an artifact of the display cap. It accumulates every
-        # accepted count this tick, legitimate detections and any
-        # attacker telemetry alike, through this same shared code path;
-        # see network.py's pending_tick_arrivals docstring for why that
-        # is a deliberate security detail.
-        intersection.pending_tick_arrivals[approach] = intersection.pending_tick_arrivals.get(approach, 0.0) + count
+        # Feeds the ML arrival predictor's training data (see detection.
+        # py's harvest step and ml_predictor.py), which should learn the
+        # true claimed demand, not an artifact of the display cap above
+        # -- so this is capped separately, at MAX_TRAINING_ARRIVAL_COUNT
+        # rather than MAX_QUEUE_PER_APPROACH, much higher than the queue
+        # cap but not literally unbounded. It accumulates every accepted
+        # count this tick, legitimate detections and any attacker
+        # telemetry alike, through this same shared code path; see
+        # network.py's pending_tick_arrivals docstring for why that is a
+        # deliberate security detail, and MAX_TRAINING_ARRIVAL_COUNT's
+        # own comment for why the cap itself has to exist at all: a
+        # single uncapped report at Pydantic's own maximum (100,000)
+        # was confirmed live to corrupt the shared predictor's weights
+        # across every junction on the network, not just the one
+        # attacked, ordinary gradient descent has no built-in resistance
+        # to one extreme outlier target.
+        updated_pending = intersection.pending_tick_arrivals.get(approach, 0.0) + count
+        intersection.pending_tick_arrivals[approach] = min(updated_pending, MAX_TRAINING_ARRIVAL_COUNT)
 
     if broadcast_result:
         await broadcast()
@@ -476,6 +506,60 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="ITC Digital Twin - Attack & Defense Demo", lifespan=lifespan)
 
 
+# Neither FastAPI nor Starlette impose any default limit on request body
+# size (researched, not assumed: this is a well-documented, long-standing
+# gap in both). The per-field Pydantic bounds on CommandRequest/
+# TelemetryRequest (max_length 64-1000 characters, see below) only ever
+# get a chance to reject an oversized value AFTER the full body has
+# already been read into memory and parsed as JSON -- they do nothing to
+# stop a request from being enormous in the first place. Every field this
+# app actually accepts is small by design; nothing legitimate ever needs
+# more than a few hundred bytes total.
+MAX_REQUEST_BODY_BYTES = 16 * 1024  # 16 KiB, generous headroom above any real request
+
+
+class MaxBodySizeMiddleware:
+    """Raw ASGI middleware (added via app.add_middleware below), not the
+    simpler @app.middleware("http") decorator style used elsewhere in
+    this file: that decorator only gets a fully-assembled Request after
+    Starlette has already started consuming the body through `receive`,
+    the exact layer this needs to intercept, so there is nothing to gain
+    from routing through that extra layer first.
+
+    Counts actual bytes as they arrive over the connection and aborts
+    once the running total exceeds the cap, rather than trusting the
+    Content-Length header alone: a client using chunked transfer
+    encoding can omit Content-Length entirely or send one that doesn't
+    match what it actually transmits, so a header-only check can be
+    bypassed by exactly the kind of request this exists to catch.
+    """
+
+    def __init__(self, app, max_bytes: int) -> None:
+        self.app = app
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        total_bytes_received = 0
+
+        async def size_checked_receive():
+            nonlocal total_bytes_received
+            message = await receive()
+            if message["type"] == "http.request":
+                total_bytes_received += len(message.get("body", b""))
+                if total_bytes_received > self.max_bytes:
+                    raise HTTPException(status_code=413, detail="Request body too large")
+            return message
+
+        await self.app(scope, size_checked_receive, send)
+
+
+app.add_middleware(MaxBodySizeMiddleware, max_bytes=MAX_REQUEST_BODY_BYTES)
+
+
 @app.middleware("http")
 async def no_cache_static_files(request, call_next):
     """Forces every response to revalidate with the server instead of
@@ -499,11 +583,86 @@ async def no_cache_static_files(request, call_next):
     return response
 
 
+@app.middleware("http")
+async def security_headers(request, call_next):
+    """A small, standard set of browser-enforced security headers, none
+    of which this app sent before. Researched against current OWASP/
+    industry guidance rather than guessed, and checked against what this
+    specific app actually loads before locking in the strict version
+    below (no inline <style> attributes anywhere in web/*.html, no CDN
+    scripts or fonts, confirmed by grep, not assumed) -- so this is a
+    real restriction to exactly what the app already does, not a looser
+    placeholder that happens to not break anything today.
+
+      * Content-Security-Policy: every resource type restricted to
+        'self' (this app has no CDN dependency, no external script or
+        font, everything is same-origin), frame-ancestors 'none' so no
+        other site can iframe this dashboard and trick a visitor into
+        clicking its very real state-changing buttons (attack console,
+        incident-response playbook) without meaning to -- clickjacking
+        doesn't need an authentication bypass to be worth closing off,
+        it just needs a real button. connect-src covers the /ws
+        WebSocket too, not just fetch/XHR.
+      * X-Frame-Options: DENY is the older, wider-supported form of the
+        same frame-ancestors protection above; harmless to send both.
+      * X-Content-Type-Options: nosniff stops a browser from guessing a
+        response's content type from its bytes instead of trusting the
+        Content-Type header, closing off a real (if old) class of MIME-
+        confusion attack.
+      * Referrer-Policy: strict-origin-when-cross-origin is the current
+        browser default already, set explicitly rather than left
+        implicit so it can't quietly change under this app later.
+
+    Deliberately NOT included: Strict-Transport-Security. HSTS is only
+    meaningful once this is actually served over HTTPS with a real
+    certificate (a real deployment host's job, not this app's), and
+    sending it over plain HTTP during local development does nothing
+    useful.
+    """
+    response = await call_next(request)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self'; "
+        "img-src 'self' data:; "
+        "connect-src 'self' ws: wss:; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'; "
+        "frame-ancestors 'none'"
+    )
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
+
 # WebSocket endpoint
+
+# How many simultaneous dashboard connections this server will hold open
+# at once. Nothing previously bounded network.connections at all: every
+# accepted connection stays in that list (and gets broadcast to on every
+# tick, every ~2 real seconds) until it disconnects, so simply opening
+# many connections and holding them open, no attack payload needed at
+# all, grows memory and per-tick broadcast work without bound -- a real
+# concern once this runs as a public deployment instead of a local demo
+# with one operator. Sized well above any realistic number of people
+# actually watching one live demo at once.
+MAX_WEBSOCKET_CONNECTIONS = 200
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
+    if len(network.connections) >= MAX_WEBSOCKET_CONNECTIONS:
+        # Reject the new connection rather than evict an existing one:
+        # an existing viewer's connection shouldn't be torn down just to
+        # make room for a new one, especially since the new one is the
+        # more likely source of abuse if this cap is ever actually hit.
+        # 1013 is the standard WebSocket close code for "server
+        # overloaded, try again later."
+        await websocket.close(code=1013, reason="Too many connections")
+        return
     network.connections.append(websocket)
     await websocket.send_json({"type": "snapshot", "network": network.snapshot()})
     try:
@@ -710,8 +869,25 @@ async def forecast(req: ForecastRequest):
     network, not a separate formula invented for this endpoint. Reads
     network state but never writes it: the live simulation is
     completely unaffected by running a forecast.
+
+    Unlike /api/command and /api/telemetry, nothing gates who can call
+    this or how often -- it was never part of the attack surface this
+    project deliberately models, just a UI convenience. But
+    forecast_congestion is a genuinely synchronous function (WARM_UP_
+    TICKS + FORECAST_TICKS of real computation, ~10-15ms measured live,
+    not negligible on a single-threaded event loop), and calling it
+    directly here would run that computation ON the same event loop
+    that also drives the orchestrator/detection background loops, every
+    WebSocket broadcast, and every other concurrent request -- nothing
+    else can run while it's mid-calculation. Flooding this one
+    unauthenticated endpoint would therefore have stalled the entire
+    server for every connected viewer, not just the caller, found
+    reviewing this file end to end before a public deploy, not from a
+    live incident. asyncio.to_thread runs it on a worker thread instead,
+    so the event loop stays free to keep serving everyone else even
+    under a flood of forecast calls.
     """
-    result = forecast_congestion(network, req.intersection_id, req.hour)
+    result = await asyncio.to_thread(forecast_congestion, network, req.intersection_id, req.hour)
     if result is None:
         return {"ok": False, "reason": "unknown intersection"}
     return {"ok": True, **result}
