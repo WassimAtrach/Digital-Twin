@@ -1,0 +1,35 @@
+# Python virtual environment. Machine-specific and huge (the full
+# fastapi/uvicorn/numpy/etc. dependency tree); anyone cloning this repo
+# rebuilds it locally from server/requirements.txt instead.
+.venv/
+venv/
+
+# Python bytecode cache, regenerated automatically, never meant to be
+# committed.
+__pycache__/
+*.pyc
+
+# Real secrets, if a .env file is ever used locally. This project's own
+# signing keys are read from the environment with a clearly-labelled
+# local-dev fallback (see server/security.py) specifically so a real
+# key never has to live in a committed file at all -- this rule is a
+# safety net in case that changes later, not evidence a .env exists now.
+.env
+.env.*
+!.env.example
+
+# No JS build tooling in this project (the frontend is plain HTML/CSS/
+# JS, no npm/bundler), but ignored anyway as a standing safety net in
+# case that ever changes.
+node_modules/
+dist/
+build/
+
+# Editor/tool-local state, not shared project configuration.
+.claude/
+.vscode/
+.idea/
+
+# OS cruft.
+.DS_Store
+Thumbs.db

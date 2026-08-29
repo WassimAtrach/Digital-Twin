@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ITC Digital Twin — Traffic Network Security Operations</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Shown only when the WebSocket connection is down: every restart of
+       the server (or a lost network link) silently kills whatever tab
+       already had this page open, and without a loud signal here,
+       everything on the page keeps LOOKING live -- KPIs, the car
+       canvas, the congestion chart -- while actually being frozen at
+       whatever it last received. That gap has repeatedly caused "this
+       doesn't correlate / nothing I do has any effect" confusion that
+       was actually just a dead connection, not a bug in the logic
+       being observed. See connectWebSocket() in app.js. -->
+  <div id="disconnected-banner" class="disconnected-banner" hidden>
+    ⚠️ Lost connection to the server — everything below is frozen, not live. Reconnecting…
+  </div>
+
+  <header class="app-header">
+    <div class="header-title">
+      <h1>ITC Digital Twin</h1>
+      <p class="subtitle">Traffic Network Security Operations Center</p>
+    </div>
+
+    <div class="header-right">
+      <span id="connection-status" class="connection-status">
+        <span class="conn-dot"></span><span id="connection-status-text">connecting…</span>
+      </span>
+
+      <a
+        href="monitor.html"
+        class="btn btn-header btn-header-monitor"
+        title="Open the Live Network Monitor: all five junctions animating at once, no attack console"
+      >
+        🔴 Live Monitor
+      </a>
+
+      <button
+        id="attacks-info-btn"
+        class="btn btn-header btn-header-highlight"
+        type="button"
+        title="Open a reference guide explaining every attack type this demo can run"
+      >
+        📖 Attack types guide
+      </button>
+
+      <!-- Global deployment-configuration toggle: switches every
+           intersection between the unauthenticated legacy retrofit
+           channel and ITC Secure Integration. See server/main.py's
+           /api/mode. -->
+      <div class="mode-toggle">
+        <span id="mode-label-legacy" class="mode-label">Legacy Retrofit</span>
+        <button
+          id="mode-switch"
+          class="switch"
+          type="button"
+          role="switch"
+          aria-checked="false"
+          aria-label="Toggle ITC Secure Integration"
+        >
+          <span class="switch-knob"></span>
+        </button>
+        <span id="mode-label-secure" class="mode-label">ITC Secure Integration</span>
+
+        <button
+          id="legacy-info-btn"
+          class="info-btn"
+          type="button"
+          aria-label="What do Legacy and Retrofit mean?"
+          title="What do Legacy and Retrofit mean? Click for an explanation."
+        >
+          ?
+        </button>
+        <div id="legacy-info-popover" class="info-popover" role="tooltip" hidden>
+          <p><strong>Legacy</strong> — an old, traditional traffic light. It just runs a fixed timer (e.g. 30 seconds green, 30 seconds red), with no internet connection, cameras, or smart sensors.</p>
+          <p><strong>Retrofit</strong> — taking that legacy light and upgrading it without tearing down the poles: adding smart cameras, an edge computer, and a network link so it can react to real traffic in real time. That upgraded link is exactly what these attacks target.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- The single most important element on the page: a plain-English,
+       always-current sentence describing what's actually happening right
+       now, color-coded to match. Everything else on the dashboard is
+       detail; this is the headline. Computed in app.js's
+       renderStatusBanner() from the live network state. -->
+  <div id="status-banner" class="status-banner status-good" role="status">
+    <span id="status-banner-icon" class="status-banner-icon">✅</span>
+    <span id="status-banner-text" class="status-banner-text">Loading network state…</span>
+  </div>
+
+  <ol class="quick-start">
+    <li>Click a junction on the map, bottom-left.</li>
+    <li>In <strong>Simulation Controls</strong>, pick an attack and click <strong>Execute</strong> — watch the banner above change.</li>
+    <li>Fix it with a button in <strong>Incident Response</strong>.</li>
+    <li>Flip the switch, top-right, to <strong>ITC Secure Integration</strong> and attack again — same attack, different outcome.</li>
+  </ol>
+
+  <!-- KPI row -->
+  <section class="kpi-row" aria-label="Network key performance indicators">
+    <div class="stat-tile">
+      <span class="stat-label">Network throughput</span>
+      <span id="kpi-throughput" class="stat-value">—</span>
+      <span class="stat-unit">vehicles / hour</span>
+    </div>
+    <div class="stat-tile">
+      <span class="stat-label">Average wait time</span>
+      <span id="kpi-wait" class="stat-value">—</span>
+      <span class="stat-unit">seconds</span>
+    </div>
+    <div class="stat-tile">
+      <span class="stat-label">Congestion index</span>
+      <span id="kpi-congestion" class="stat-value">—</span>
+      <span class="stat-unit">% of reference capacity</span>
+    </div>
+    <div class="stat-tile">
+      <span class="stat-label">Active incidents</span>
+      <span id="kpi-incidents" class="stat-value">—</span>
+      <span class="stat-unit">of 5 intersections</span>
+    </div>
+  </section>
+
+  <main class="zone-grid">
+    <!-- Zone 1: Live Map & Visual Twin -->
+    <section class="zone" aria-labelledby="zone-map-title">
+      <div class="zone-header">
+        <h2 id="zone-map-title">Live Map &amp; Visual Twin</h2>
+        <p class="zone-subtitle">Click a junction to inspect it and target it below.</p>
+      </div>
+
+      <div class="topology-wrap">
+        <!-- No role="img" here: that would tell assistive tech to
+             treat everything inside as one flat, undescribed image and
+             hide each junction node's own role="button"/aria-label
+             (set in app.js) from being individually reachable -- exactly
+             backwards for an SVG whose whole point is five independently
+             clickable/keyboard-operable nodes, not a static picture. -->
+        <svg id="topology-svg" viewBox="0 0 100 100" role="group" aria-label="Traffic network topology, five junctions"></svg>
+      </div>
+
+      <div class="legend">
+        <span><span class="dot dot-good"></span> Normal</span>
+        <span><span class="dot dot-warning"></span> Fail-safe</span>
+        <span><span class="dot dot-serious"></span> Isolated</span>
+        <span><span class="dot dot-critical"></span> Collision risk</span>
+      </div>
+
+      <div class="detail-card">
+        <div class="detail-header">
+          <h3 id="selected-name">—</h3>
+          <span id="selected-health" class="health-badge health-good">Normal</span>
+        </div>
+        <p class="detail-line">Phase: <strong id="selected-phase">—</strong></p>
+        <p id="real-world-context" class="real-world-context" hidden></p>
+
+        <p class="detail-caption">Live view. Cars stop on red and pile up if this junction is attacked:</p>
+        <canvas id="junction-canvas" width="300" height="300" aria-label="Live view of the selected junction"></canvas>
+
+        <p class="detail-caption">Cars waiting on each side (higher bar = more backed up):</p>
+        <div id="queue-bars" class="queue-bars" aria-label="Queue length by approach"></div>
+      </div>
+    </section>
+
+    <!-- Zone 2: Telemetry & Anomaly Detection -->
+    <section id="zone-telemetry" class="zone" aria-labelledby="zone-telemetry-title">
+      <div class="zone-header">
+        <h2 id="zone-telemetry-title">Telemetry &amp; Anomaly Detection</h2>
+        <p class="zone-subtitle">How busy the network is, and whether anything is flooding it.</p>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <span>Congestion index — last 2 minutes</span>
+          <span id="trend-current-value" class="chart-current-value">—</span>
+        </div>
+        <div id="trend-chart-container" class="trend-chart-container">
+          <svg id="trend-svg" viewBox="0 0 600 140" preserveAspectRatio="none"></svg>
+          <div id="trend-tooltip" class="trend-tooltip" hidden></div>
+        </div>
+      </div>
+
+      <div class="channel-load-card">
+        <div class="channel-load-row">
+          <span>Command channel</span>
+          <div class="meter-track"><div id="meter-command" class="meter-fill"></div></div>
+          <span id="channel-command-value" class="channel-value">0 req/min</span>
+        </div>
+        <div class="channel-load-row">
+          <span>Telemetry channel</span>
+          <div class="meter-track"><div id="meter-telemetry" class="meter-fill"></div></div>
+          <span id="channel-telemetry-value" class="channel-value">0 req/min</span>
+        </div>
+        <p class="meter-caption">A spike here with no real traffic to explain it means someone is flooding the system.</p>
+      </div>
+
+      <aside class="fun-fact-panel" aria-label="Traffic and systems trivia">
+        <span class="fun-fact-kicker">Did you know?</span>
+        <p id="fun-fact-text" class="fun-fact-text">—</p>
+        <button id="fun-fact-next" type="button" class="fun-fact-next">Next fact →</button>
+      </aside>
+    </section>
+
+    <!-- Zone 3: Simulation Controls -->
+    <section class="zone" aria-labelledby="zone-sim-title">
+      <div class="zone-header">
+        <h2 id="zone-sim-title">Simulation Controls</h2>
+        <p class="zone-subtitle">This is where you play the attacker. Pick a target, hit Execute.</p>
+      </div>
+
+      <form id="attack-form" class="console-form">
+        <label class="field">
+          <span>Attack type</span>
+          <select id="attack-type">
+            <option value="inject">Command Injection (T0855)</option>
+            <option value="spoof-congestion">Sensor Spoofing — Fake Congestion (T0856)</option>
+            <option value="spoof-emergency">Sensor Spoofing — Fake Preemption (T0856)</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Target intersection</span>
+          <select id="attack-target"></select>
+        </label>
+
+        <label id="attack-approach-field" class="field">
+          <span>Approach</span>
+          <select id="attack-approach">
+            <option value="N">North</option>
+            <option value="S">South</option>
+            <option value="E">East</option>
+            <option value="W">West</option>
+          </select>
+        </label>
+
+        <label id="attack-count-field" class="field">
+          <span>Fake vehicle count</span>
+          <input id="attack-count" type="number" min="1" max="500" value="40" />
+        </label>
+
+        <p id="attack-description" class="console-description"></p>
+
+        <label class="field field-inline">
+          <input id="attack-flood" type="checkbox" />
+          <span>Repeat rapidly (flood) —</span>
+          <input id="attack-flood-count" type="number" min="2" max="30" value="10" class="inline-number" />
+          <span>requests</span>
+        </label>
+
+        <label class="field field-inline">
+          <input id="attack-coordinated" type="checkbox" />
+          <span>Coordinated — fire at all 5 junctions at once, not just the selected target</span>
+        </label>
+
+        <!-- Live preview of the exact JSON body Execute is about to
+             POST, kept in sync with every field above by
+             renderPayloadPreview() in app.js: what "behind the scenes"
+             actually looks like for this specific attack, not a canned
+             example. -->
+        <div class="payload-preview-wrap">
+          <span class="payload-preview-label">Request payload (what Execute actually sends)</span>
+          <pre id="payload-preview" class="payload-preview"></pre>
+        </div>
+
+        <button id="attack-execute" type="submit" class="btn btn-attack">Execute attack</button>
+      </form>
+
+      <div class="load-control">
+        <span class="load-control-label">Traffic load</span>
+        <!-- Each button is really just a representative hour handed to
+             the same /api/hour endpoint the Live Monitor's forecast
+             tool uses (see server/tel_aviv_data.py's
+             HOURLY_TRAFFIC_MULTIPLIER): Light -> 03:00 (0.10x, the
+             overnight trough), Normal -> 14:00 (1.05x, closest to a
+             flat baseline), Rush Hour -> 17:00 (3.00x, the real
+             documented evening peak). One real hourly curve stays the
+             single source of truth; this is just a simpler front
+             door onto it than picking an exact hour. -->
+        <div class="segmented" id="hour-segmented" role="group" aria-label="Traffic load presets">
+          <button type="button" class="segmented-btn" data-hour="3">Light</button>
+          <button type="button" class="segmented-btn" data-hour="14">Normal</button>
+          <button type="button" class="segmented-btn" data-hour="17">Rush Hour</button>
+        </div>
+      </div>
+      <p id="load-explanation" class="load-explanation">Real traffic follows the hour: this drives detection.py's arrival rate from a real, documented urban commute pattern (see the README), not a flat average.</p>
+    </section>
+
+    <!-- Zone 4: Incident Response Playbook Station -->
+    <section id="zone-playbook" class="zone" aria-labelledby="zone-playbook-title">
+      <div class="zone-header">
+        <h2 id="zone-playbook-title">Incident Response Playbook</h2>
+        <p class="zone-subtitle">Actions apply to the selected junction: <strong id="playbook-target-name">—</strong></p>
+      </div>
+
+      <p id="playbook-hint" class="playbook-hint" hidden></p>
+
+      <div class="playbook-actions">
+        <button
+          id="playbook-failsafe"
+          class="btn btn-playbook"
+          type="button"
+          title="Immediately forces every light at this junction to flashing red. Technically: sets phase to ALL_RED and raises the fail-safe alarm, bypassing the AI orchestrator. Use this to stop a dangerous conflicting-green state right now."
+        >
+          Fail-Safe Flash
+          <small>Force flashing red immediately</small>
+        </button>
+        <button
+          id="playbook-isolate"
+          class="btn btn-playbook"
+          type="button"
+          title="Immediately forces flashing red AND cuts this junction off from incoming commands and telemetry (from anyone, not just the attacker) for 25 seconds. Technically: the same auto-block/isolation the security layer applies automatically, triggered manually and immediately, so a compromised channel can't be used again while it's investigated -- and unlike Fail-Safe Flash alone, queues can't keep climbing from organic traffic while it's held, since incoming telemetry is rejected too."
+        >
+          Isolate Node
+          <small>Force safe AND cut off from all traffic now</small>
+        </button>
+        <button
+          id="playbook-restore"
+          class="btn btn-playbook btn-playbook-restore"
+          type="button"
+          title="Clears any alarm, isolation, and queued traffic, and hands the junction back to the AI orchestrator. Technically: resets phase/alarm/isolation state and zeroes queue estimates. Use this once you're done responding, to return to normal operation."
+        >
+          Restore Normal Operation
+          <small>Hand back to the AI orchestrator</small>
+        </button>
+      </div>
+
+      <!-- Network-wide, not tied to the selected junction like the three
+           above: a Coordinated attack hits all 5 at once, so fixing it
+           one junction at a time (select, click Restore, repeat x5) was
+           the slow part, not the attack itself. One click, one request,
+           every junction back to normal at once. -->
+      <button
+        id="playbook-restore-all"
+        class="btn btn-playbook-all"
+        type="button"
+        title="Restores every junction on the network at once: same effect as clicking Restore Normal Operation on each of the 5 individually, in a single request. Use this after a Coordinated attack instead of restoring one junction at a time."
+      >
+        🔁 Restore All Junctions
+        <small>Hand every junction back to the AI orchestrator at once</small>
+      </button>
+
+      <div class="event-table-wrap">
+        <table class="event-table">
+          <thead>
+            <tr>
+              <th scope="col">Time</th>
+              <th scope="col">Severity</th>
+              <th scope="col">Junction</th>
+              <th scope="col">Event</th>
+            </tr>
+          </thead>
+          <tbody id="security-event-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="ops-footer">
+    <h3>Operations log</h3>
+    <ul id="ops-log-list" class="ops-log-list"></ul>
+  </footer>
+
+  <!-- Educational pop-up shown every time an attack is executed. Content
+       is filled in by app.js from ATTACK_EXPLANATIONS before this is
+       un-hidden; see showAttackModal(). -->
+  <div id="attack-modal-backdrop" class="modal-backdrop" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <span id="modal-tag" class="modal-tag">Attack detected</span>
+      <h3 id="modal-title">—</h3>
+
+      <dl class="modal-facts">
+        <dt>What just happened</dt>
+        <dd id="modal-what">—</dd>
+        <dt>How it affects a real system</dt>
+        <dd id="modal-how">—</dd>
+        <dt>Outcome</dt>
+        <dd id="modal-outcome">—</dd>
+      </dl>
+
+      <p id="modal-guidance" class="modal-guidance"></p>
+
+      <button id="modal-dismiss" class="btn btn-attack" type="button">Got it — respond now</button>
+    </div>
+  </div>
+
+  <!-- Confirmation toast shown after a mitigation action (Fail-Safe
+       Flash / Isolate Node / Restore) completes; see runPlaybook() in
+       app.js. Auto-dismisses; can also be dismissed by clicking it. -->
+  <div id="mitigation-toast" class="mitigation-toast" hidden role="status">
+    <span id="mitigation-toast-icon" class="mitigation-toast-icon">✅</span>
+    <span id="mitigation-toast-text" class="mitigation-toast-text"></span>
+  </div>
+
+  <!-- Reference panel listing every attack type, opened from the
+       "Attacks info" button in the header, viewable any time, not only
+       when an attack is executed. -->
+  <div id="attacks-info-backdrop" class="modal-backdrop" hidden>
+    <div class="modal-card modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="attacks-info-title">
+      <span class="modal-tag">Reference</span>
+      <h3 id="attacks-info-title">Attack types in this demo</h3>
+      <div id="attacks-info-list" class="attacks-info-list"></div>
+      <button id="attacks-info-dismiss" class="btn btn-attack" type="button">Close</button>
+    </div>
+  </div>
+
+  <script src="car-sim.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

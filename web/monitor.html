@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ITC Live Network Monitor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- See index.html's identical banner for why this exists: without a
+       loud signal, a dropped WebSocket leaves every card on this page
+       looking exactly as live as before, just frozen. -->
+  <div id="disconnected-banner" class="disconnected-banner" hidden>
+    ⚠️ Lost connection to the server — everything below is frozen, not live. Reconnecting…
+  </div>
+
+  <header class="app-header">
+    <div class="header-title">
+      <h1>ITC Live Network Monitor</h1>
+      <p class="subtitle">All five junctions, animating in real time. No attack console here.</p>
+    </div>
+
+    <div class="header-right">
+      <span id="connection-status" class="connection-status">
+        <span class="conn-dot"></span><span id="connection-status-text">connecting…</span>
+      </span>
+
+      <a href="index.html" class="btn btn-header" title="Back to the Security Console: attack simulation and incident response">
+        ← Security Console
+      </a>
+    </div>
+  </header>
+
+  <!-- Same idea as the main dashboard's status banner: one plain-English
+       sentence describing the whole network's worst-case state right
+       now, filled in by monitor.js's renderStatusBanner(). -->
+  <section id="status-banner" class="status-banner status-good">
+    <span id="status-banner-icon" class="status-banner-icon">●</span>
+    <span id="status-banner-text" class="status-banner-text">Loading network state…</span>
+  </section>
+
+  <!-- Network-wide congestion index: the same KPI the main dashboard
+       shows (averaged across all 5 junctions), not any one junction's
+       own number. Each card below additionally shows its own. -->
+  <section class="monitor-kpi-row" aria-label="Network key performance indicator">
+    <div class="stat-tile monitor-kpi-tile">
+      <span class="stat-label">Network congestion index</span>
+      <span id="kpi-congestion" class="stat-value">—</span>
+      <span class="stat-unit">% of reference capacity</span>
+    </div>
+  </section>
+
+  <!-- Populated entirely by monitor.js once the first network snapshot
+       arrives: one card per junction, in whatever order the server
+       reports them, so this never hardcodes junction ids/names that
+       could drift out of sync with server/network.py. -->
+  <main id="monitor-grid" class="monitor-grid" aria-label="Live view of every junction"></main>
+
+  <script src="car-sim.js"></script>
+  <script src="monitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+# Minimum-version bounds rather than exact pins: this project targets a
+# freshly-released Python interpreter, and exact pins risk landing on an
+# old release that doesn't have a prebuilt wheel for it yet.
+fastapi>=0.115
+uvicorn[standard]>=0.32
+requests>=2.32

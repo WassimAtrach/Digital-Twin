@@ -1,0 +1,1811 @@
+/* ITC Digital Twin: stylesheet
+
+   A deliberate, single dark theme (no light-mode variant): this is a
+   security operations dashboard meant for a wall monitor or a live demo
+   screen, not a general-purpose page. Colors are the validated dark-mode
+   steps from the project's data-visualization design system: fixed
+   status scale (good/warning/serious/critical), fixed categorical order
+   for the four approach queues, one sequential hue for the trend line.
+   Nothing here is eyeballed; every color is a documented token. */
+
+:root {
+  color-scheme: dark;
+
+  /* chart chrome & ink */
+  --surface-1: #1a1a19;
+  --page-plane: #0d0d0d;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --gridline: #2c2c2a;
+  --baseline: #383835;
+  --border: rgba(255, 255, 255, 0.10);
+
+  /* status scale: reserved meaning, never reused for series identity */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  /* categorical (dark steps), fixed order: used for the four approach
+     queue bars (N/E/S/W) and nothing else */
+  --cat-1-blue: #3987e5;
+  --cat-2-orange: #d95926;
+  --cat-3-aqua: #199e70;
+  --cat-4-yellow: #c98500;
+
+  /* sequential blue, for the single-series congestion trend line */
+  --seq-blue-400: #3987e5;
+  --seq-blue-250: #86b6ef;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* One global focus-visible rule rather than styling every interactive
+   element individually: before this, nothing on either page (buttons,
+   the topology map's junction nodes, form fields, links) showed any
+   visible indicator of keyboard focus at all, making the whole
+   dashboard effectively unusable via keyboard even where elements were
+   otherwise reachable and operable. :focus-visible (not plain :focus)
+   so this only shows for keyboard/programmatic focus, never for a
+   mouse click, matching how a sighted mouse user already gets other
+   feedback (hover states, the click itself) that a visible ring would
+   be redundant for. */
+:focus-visible {
+  outline: 2px solid var(--seq-blue-400);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--page-plane);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+}
+
+h1, h2, h3 {
+  font-family: inherit;
+}
+
+/* Custom scrollbars matching the dark theme: the browser default (a
+   light gray/white scrollbar) looks broken against a dark background. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--baseline) var(--page-plane);
+}
+
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--page-plane);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--baseline);
+  border-radius: 5px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Tint native form controls (checkboxes, number inputs) to the theme's
+   accent instead of leaving them in the browser's default light-blue
+   styling, which stands out against the dark UI. */
+input {
+  accent-color: var(--seq-blue-400);
+  color-scheme: dark;
+}
+
+/* Header */
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1.1rem 1.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.header-title h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  letter-spacing: 0.01em;
+}
+
+.subtitle {
+  margin: 0.15rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  /* .app-header wrapping (flex-wrap on the header itself) only ever
+     moved this whole group onto its own row under the title; nothing
+     inside the group could then wrap further, so on a phone-width
+     screen the connection status, both nav buttons, the mode toggle,
+     and the info button were all forced onto one line wider than the
+     screen itself, the single biggest contributor to this page's
+     horizontal overflow. This lets that line actually break. */
+  flex-wrap: wrap;
+  row-gap: 0.6rem;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.conn-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-warning);
+}
+
+.connection-status.connected .conn-dot {
+  background: var(--status-good);
+}
+
+/* .btn.btn-header (both classes chained), not plain .btn-header: every
+   header button also carries the base .btn class, and .btn is defined
+   much later in this file with its own background/color. At equal
+   specificity the later rule always wins regardless of which order the
+   classes are written in the HTML, so a plain .btn-header here was
+   silently losing to .btn's background: var(--page-plane) (near-black)
+   every time, rendering as a barely-visible dark button on the dark
+   page, "black on black." Chaining both classes raises this rule's
+   specificity above .btn's, so it wins on file order alone no longer
+   matters. */
+.btn.btn-header {
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  /* .btn-header is shared by <button> and <a> (e.g. the Live Monitor
+     link): these two reset an anchor's default underline/inline box so
+     it renders identically to the button elements using this class. */
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn.btn-header:hover {
+  color: var(--text-primary);
+  border-color: var(--seq-blue-400);
+}
+
+/* The header button that opens a help/reference panel gets its own
+   blue accent so it reads as "informational" rather than blending in
+   with ordinary controls. */
+.btn.btn-header-highlight {
+  border-color: var(--seq-blue-400);
+  color: var(--seq-blue-400);
+  background: rgba(57, 135, 229, 0.1);
+}
+
+.btn.btn-header-highlight:hover {
+  background: rgba(57, 135, 229, 0.2);
+  color: var(--text-primary);
+}
+
+/* The Live Monitor link gets its own green accent, distinct from the
+   guide button's blue: green reads as "live/active" (the same meaning
+   --status-good carries everywhere else on this page), and having two
+   different accent hues makes the two header buttons easy to tell
+   apart at a glance instead of both reading as one generic action. */
+.btn.btn-header-monitor {
+  border-color: var(--status-good);
+  color: var(--status-good);
+  background: rgba(12, 163, 12, 0.1);
+}
+
+.btn.btn-header-monitor:hover {
+  background: rgba(12, 163, 12, 0.2);
+  color: var(--text-primary);
+}
+
+/* Mode toggle */
+
+.mode-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.mode-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.mode-label.active {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.switch {
+  position: relative;
+  width: 46px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--status-critical);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.switch.on .switch-knob {
+  transform: translateX(22px);
+  background: var(--status-good);
+}
+
+/* Legacy / Retrofit info popover */
+
+.info-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--seq-blue-400);
+  background: rgba(57, 135, 229, 0.12);
+  color: var(--seq-blue-400);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+
+.info-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--seq-blue-400);
+}
+
+.info-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  width: 320px;
+  /* A fixed 320px anchored to the trigger button's right edge can
+     still overhang the LEFT edge of a phone narrower than that (a
+     320px-and-under device, or the button sitting anywhere left of the
+     viewport's own right edge). This caps it to the viewport's actual
+     width instead of trusting 320px always fits. */
+  max-width: calc(100vw - 2rem);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 20;
+}
+
+.info-popover p {
+  margin: 0 0 0.6rem;
+}
+
+.info-popover p:last-child {
+  margin-bottom: 0;
+}
+
+.info-popover strong {
+  color: var(--text-primary);
+}
+
+/* Status banner.
+   The single most important element on the page: a large, always-current,
+   plain-English sentence describing what's actually happening right now.
+   Color-coded to the same status scale as everything else, so the reader
+   gets the headline from color alone before they've even read the words. */
+
+.status-banner {
+  margin: 0.9rem 1.75rem 0;
+  padding: 0.9rem 1.25rem;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.status-banner-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.status-banner-text {
+  line-height: 1.4;
+}
+
+.status-good {
+  background: rgba(12, 163, 12, 0.12);
+  border-color: rgba(12, 163, 12, 0.3);
+  color: var(--status-good);
+}
+
+.status-warning {
+  background: rgba(250, 178, 25, 0.14);
+  border-color: rgba(250, 178, 25, 0.35);
+  color: var(--status-warning);
+}
+
+.status-serious {
+  background: rgba(236, 131, 90, 0.14);
+  border-color: rgba(236, 131, 90, 0.35);
+  color: var(--status-serious);
+}
+
+.status-critical {
+  background: rgba(208, 59, 59, 0.16);
+  border-color: rgba(208, 59, 59, 0.4);
+  color: var(--status-critical);
+  animation: banner-pulse 1s infinite alternate;
+}
+
+@keyframes banner-pulse {
+  from { opacity: 1; }
+  to { opacity: 0.7; }
+}
+
+/* Disconnected banner: deliberately louder and more disruptive than the
+   small header connection-status dot, and sticky so it can't scroll out
+   of view. A dead WebSocket otherwise leaves every number, chart, and
+   canvas on the page looking exactly as "live" as before, just frozen
+   -- the small dot alone was easy to miss, which is what made a dead
+   connection repeatedly read as a logic bug instead of what it was. */
+.disconnected-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  margin: 0;
+  padding: 0.7rem 1.25rem;
+  background: var(--status-critical);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.92rem;
+  text-align: center;
+  animation: banner-pulse 1s infinite alternate;
+}
+
+/* Applied to <body> while the socket is down: dims every OTHER top-level
+   section so stale content reads as visibly inert rather than
+   indistinguishable from live data. The banner itself is excluded so it
+   stays at full strength. */
+body.page-stale > *:not(#disconnected-banner) {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+  pointer-events: none;
+}
+
+
+/* Quick start */
+
+.quick-start {
+  margin: 0.6rem 1.75rem 0;
+  padding: 0.7rem 1rem 0.7rem 2.2rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.quick-start strong {
+  color: var(--text-primary);
+}
+
+.detail-caption {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+#junction-canvas {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  display: block;
+  margin: 0 auto;
+  background: var(--page-plane);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* Zone 2's own content (chart + channel meters) is much shorter than
+   Zone 1's (map + live view), which used to leave a large blank strip
+   below Zone 2's card. As the last child in Zone 2's flex column, this
+   panel grows (flex: 1) to absorb exactly that leftover height instead
+   of it staying empty, with its own content centered so it still reads
+   naturally at whatever height it ends up. */
+.fun-fact-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  background: var(--page-plane);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+}
+
+.fun-fact-kicker {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cat-1-blue);
+}
+
+.fun-fact-text {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 1.3rem;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.fun-fact-next {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.5rem 1.15rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--cat-1-blue);
+  cursor: pointer;
+}
+
+.fun-fact-next:hover {
+  background: rgba(57, 135, 229, 0.12);
+  border-color: var(--cat-1-blue);
+}
+
+
+/* KPI row / stat tiles */
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1rem 1.75rem 0;
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1.1rem;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.stat-value {
+  font-size: 1.9rem;
+  font-weight: 600;
+  font-variant-numeric: proportional-nums;
+  transition: color 0.3s ease;
+}
+
+/* Traffic-light severity coloring, applied by app.js's severityClassFor(). */
+.stat-value-good { color: var(--status-good); }
+.stat-value-warning { color: var(--status-warning); }
+.stat-value-critical { color: var(--status-critical); }
+
+/* The whole tile picks up a subtle matching tint, not just the number:
+   the dashboard should read as reactive at a glance, not black-and-white
+   with the occasional colored digit. */
+.stat-tile:has(.stat-value-warning) {
+  border-color: rgba(250, 178, 25, 0.4);
+  background: rgba(250, 178, 25, 0.05);
+}
+
+.stat-tile:has(.stat-value-critical) {
+  border-color: rgba(208, 59, 59, 0.5);
+  background: rgba(208, 59, 59, 0.07);
+}
+
+.stat-unit {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Zone grid */
+
+.zone-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* Without this, grid's default stretch forces every zone in a row to
+     match the tallest one. Zone 3 and Zone 4 (bottom row) have no
+     filler content, so stretching them would just add blank padding
+     at the bottom of whichever is shorter. Zone 2 opts back into
+     stretch on its own below, since it has the trivia panel to absorb
+     that height usefully instead. */
+  align-items: start;
+  gap: 1rem;
+  margin: 1rem 1.75rem;
+}
+
+/* Opts Zone 2 back into matching Zone 1's height (see the align-items
+   note above): its trivia panel is the flex child designed to absorb
+   that extra height, so stretching here fills real space instead of
+   creating blank padding the way it would for Zone 3/4. */
+#zone-telemetry {
+  align-self: stretch;
+}
+
+/* Zone 4 opts into the same stretch-and-absorb pattern as Zone 2
+   above, for the same reason: with align-items:start (the default for
+   this row), Zone 4 only ever took its own natural content height,
+   which is shorter than Zone 3 (the attack console form) sitting next
+   to it. The grid row itself is still exactly as tall as Zone 3
+   regardless -- grid track sizing is driven by the tallest item in the
+   row no matter how align-items is set -- so the space between Zone
+   4's shorter content and the row's real height showed up as visible
+   dead page background below Zone 4's card instead of inside it.
+   Stretching Zone 4 to the row's full height, with the event table
+   below set to flex:1 (see .event-table-wrap), moves that same
+   leftover space inside the card and hands it to the one element built
+   to use it: more of the security event feed visible without
+   scrolling, instead of empty air underneath it. */
+#zone-playbook {
+  align-self: stretch;
+}
+
+.zone {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+/* monitor.html / monitor.js: the Live Network Monitor's grid of five
+   junction cards. auto-fit means the grid genuinely reflows (2 per
+   row on a narrower window, more on a wide one) rather than a fixed
+   column count that would either crowd a small window or leave a
+   wide one mostly empty. */
+.monitor-grid {
+  display: grid;
+  /* min(320px, 100%), not a bare 320px: on a phone narrower than
+     320px of available width (after the page's own side margins),
+     a bare minmax(320px, 1fr) forces that minimum anyway, which is
+     what makes a grid force the whole page to scroll sideways. Letting
+     the minimum yield to 100% of the available column width below that
+     point means a single card still fills the screen instead of
+     overflowing it. */
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  gap: 1rem;
+  margin: 1rem 1.75rem;
+}
+
+.monitor-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.monitor-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.monitor-card-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.monitor-stats-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.monitor-stats-row strong {
+  color: var(--text-primary);
+}
+
+.monitor-canvas {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  display: block;
+  margin: 0 auto;
+  background: var(--page-plane);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* Positions the hour badge relative to the canvas itself (not the
+   whole card), so it reads as a HUD element on the junction view: the
+   picture and the time of day it represents, together. */
+.monitor-canvas-wrap {
+  position: relative;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.hour-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(13, 13, 13, 0.75);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+/* While a forecast is playing, the badge shows the forecasted hour,
+   not the live one: a distinct accent (matching .forecast-result's
+   general "this is a forecast, not live data" role) makes that
+   difference impossible to miss at a glance. */
+.hour-badge-forecast {
+  border-color: var(--cat-3-aqua);
+  color: var(--cat-3-aqua);
+  background: rgba(25, 158, 112, 0.15);
+}
+
+/* Doesn't reuse .kpi-row: that's a fixed 4-column grid built for the
+   main dashboard's 4 KPI tiles, and a single tile stretched across 4
+   columns looks broken. This sizes to its one tile's own content
+   instead. */
+.monitor-kpi-row {
+  display: flex;
+  margin: 1rem 1.75rem 0;
+}
+
+.monitor-kpi-tile {
+  min-width: 220px;
+}
+
+.zone-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.zone-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+/* Zone 1: topology map + detail card */
+
+.topology-wrap {
+  background: var(--page-plane);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+}
+
+#topology-svg {
+  width: 100%;
+  height: 260px;
+  display: block;
+}
+
+.topology-node-rect {
+  fill: var(--surface-1);
+  stroke: var(--baseline);
+  stroke-width: 0.6;
+  cursor: pointer;
+}
+
+.topology-node-rect.selected {
+  stroke: var(--seq-blue-400);
+  stroke-width: 1;
+}
+
+.topology-node-label {
+  fill: var(--text-primary);
+  font-size: 3px;
+  pointer-events: none;
+}
+
+.topology-node-sub {
+  fill: var(--text-muted);
+  font-size: 2.3px;
+  pointer-events: none;
+}
+
+.topology-edge {
+  stroke: var(--baseline);
+  stroke-width: 0.5;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.legend .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+
+.dot-good { background: var(--status-good); }
+.dot-warning { background: var(--status-warning); }
+.dot-serious { background: var(--status-serious); }
+.dot-critical { background: var(--status-critical); }
+
+.detail-card {
+  border-top: 1px solid var(--border);
+  padding-top: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.detail-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.detail-line {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Real-world grounding (server/tel_aviv_data.py): a genuine, cited fact
+   about this specific junction, shown so a viewer can independently
+   check it rather than take the calibration on faith. */
+.real-world-context {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.real-world-context-link {
+  color: var(--cat-1-blue);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.real-world-context-link:hover {
+  text-decoration: underline;
+}
+
+.health-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.health-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.health-good { color: var(--status-good); background: rgba(12, 163, 12, 0.12); }
+.health-warning { color: var(--status-warning); background: rgba(250, 178, 25, 0.14); }
+.health-serious { color: var(--status-serious); background: rgba(236, 131, 90, 0.14); }
+.health-critical { color: var(--status-critical); background: rgba(208, 59, 59, 0.16); }
+
+/* Approach queue bars: 4-series categorical, direct-labeled per the
+   dataviz rule that 4 series requires direct labels, not color alone. */
+.queue-bars {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  align-items: end;
+  height: 90px;
+}
+
+.queue-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 0.3rem;
+}
+
+.queue-bar-value {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-bar-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+  width: 22px;
+}
+
+.queue-bar {
+  width: 22px;
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+}
+
+/* The ML predictor's forecast, stacked above the real queue bar: same
+   hue as the approach it belongs to, lower opacity so it reads as an
+   uncertain extension of that series rather than a new one, and a 2px
+   gap below it (the dataviz rule for adjacent stacked segments) so it
+   never visually fuses with the solid bar underneath. */
+.queue-bar-predicted {
+  width: 22px;
+  border-radius: 4px 4px 0 0;
+  margin-bottom: 2px;
+  opacity: 0.4;
+}
+
+.queue-bar-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Zone 2: trend chart + channel load */
+
+.chart-card {
+  background: var(--page-plane);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.chart-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.chart-current-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.trend-chart-container {
+  position: relative;
+}
+
+#trend-svg {
+  width: 100%;
+  height: 140px;
+  display: block;
+  overflow: visible;
+}
+
+.trend-line {
+  fill: none;
+  stroke: var(--seq-blue-400);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.trend-area {
+  fill: var(--seq-blue-400);
+  opacity: 0.10;
+}
+
+.trend-gridline {
+  stroke: var(--gridline);
+  stroke-width: 1;
+}
+
+.trend-axis-label {
+  fill: var(--text-muted);
+  font-size: 8px;
+}
+
+.trend-crosshair {
+  stroke: var(--baseline);
+  stroke-width: 1;
+}
+
+.trend-dot {
+  fill: var(--seq-blue-400);
+  stroke: var(--surface-1);
+  stroke-width: 2;
+}
+
+.trend-tooltip {
+  position: absolute;
+  top: 8px;
+  pointer-events: none;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.trend-tooltip strong {
+  color: var(--text-primary);
+}
+
+.channel-load-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.channel-load-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 90px;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.local-congestion-row {
+  display: grid;
+  grid-template-columns: auto 1fr 50px;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.meter-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--gridline);
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--status-good);
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.meter-fill.meter-elevated { background: var(--status-warning); }
+.meter-fill.meter-critical { background: var(--status-critical); }
+
+.channel-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.meter-caption {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Zone 3: simulation controls */
+
+.console-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.field select,
+.field input[type="number"] {
+  background: var(--page-plane);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+.field-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  /* "Repeat rapidly (flood) — [10] requests" is long enough that a
+     narrow phone width can't fit it on one line next to the checkbox;
+     without wrapping this pushed the number input off the right edge
+     of the screen instead of dropping to a second line. */
+  flex-wrap: wrap;
+}
+
+.inline-number {
+  width: 56px;
+  background: var(--page-plane);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.25rem 0.4rem;
+  font-family: inherit;
+}
+
+.console-description {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  min-height: 2.2em;
+}
+
+.payload-preview-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.payload-preview-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.payload-preview {
+  margin: 0;
+  background: var(--page-plane);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  color: var(--cat-3-aqua);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.btn {
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: var(--text-primary);
+  background: var(--page-plane);
+  font-family: inherit;
+}
+
+.btn-attack {
+  border-color: var(--status-critical);
+  color: var(--status-critical);
+}
+
+.btn-attack:hover {
+  background: rgba(208, 59, 59, 0.10);
+}
+
+.load-control {
+  border-top: 1px solid var(--border);
+  padding-top: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.load-control-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.segmented-btn {
+  padding: 0.4rem 0.75rem;
+  background: var(--page-plane);
+  color: var(--text-secondary);
+  border: none;
+  border-right: 1px solid var(--border);
+  font-size: 0.78rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.segmented-btn:last-child {
+  border-right: none;
+}
+
+.segmented-btn.active {
+  background: var(--seq-blue-400);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.load-explanation {
+  margin: 0.5rem 0 0;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+/* ML Forecast: only the Live Network Monitor page (monitor.html/
+   monitor.js) uses these now, one instance per junction card there; the
+   main dashboard's front-page control is back to the plain
+   Light/Normal/Rush Hour buttons above (.load-control/.segmented). */
+.forecast-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.forecast-controls select {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--page-plane);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+}
+
+.forecast-result {
+  background: var(--page-plane);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.forecast-result p {
+  margin: 0 0 0.35rem;
+}
+
+.forecast-result p:last-child {
+  margin-bottom: 0;
+}
+
+.forecast-result strong {
+  color: var(--text-primary);
+}
+
+/* Zone 4: playbook + event table */
+
+.playbook-hint {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  background: rgba(250, 178, 25, 0.12);
+  border: 1px solid rgba(250, 178, 25, 0.35);
+  border-radius: 8px;
+  color: var(--status-warning);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.playbook-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+/* Guided response: a pulsing glow on the one button the current
+   situation actually calls for, so "what do I click next" never
+   requires reading; it's the button that's glowing. */
+.guided-glow {
+  animation: guided-pulse 0.85s infinite alternate;
+  border-width: 2px !important;
+  position: relative;
+  z-index: 1;
+}
+
+/* Amber-to-red color shift plus a bigger, brighter shadow spread and a
+   slight scale bump: strong enough to catch attention from across the
+   dashboard, not just a subtle border tint. */
+@keyframes guided-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(250, 178, 25, 0.6), 0 0 14px 2px rgba(250, 178, 25, 0.5);
+    border-color: var(--status-warning) !important;
+    transform: scale(1);
+  }
+  100% {
+    box-shadow: 0 0 0 9px rgba(208, 59, 59, 0), 0 0 22px 6px rgba(208, 59, 59, 0.65);
+    border-color: var(--status-critical) !important;
+    transform: scale(1.035);
+  }
+}
+
+.btn-playbook {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  border-color: var(--status-warning);
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.btn-playbook small {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.btn-playbook-restore {
+  border-color: var(--status-good);
+}
+
+.btn-playbook:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Deliberately distinct from the three .btn-playbook actions above --
+   full-width and its own accent color -- so it reads as a different
+   KIND of action (network-wide, not tied to whichever junction is
+   selected) rather than a fourth option in that same row. */
+.btn-playbook-all {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  margin-top: 0.6rem;
+  border-color: var(--seq-blue-400);
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.btn-playbook-all small {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.btn-playbook-all:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.event-table-wrap {
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+  flex: 1;
+  max-height: 400px;
+  overflow: auto;
+}
+
+.event-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+}
+
+.event-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-1);
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.event-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--gridline);
+  vertical-align: top;
+  color: var(--text-secondary);
+}
+
+/* A critical row (e.g. an active collision risk) shouldn't be missable
+   in a scrolling table: bold text, a tinted background, and a solid
+   accent bar down the left edge, not just a small colored badge. */
+.event-row-critical td {
+  font-weight: 700;
+  color: var(--text-primary);
+  background: rgba(208, 59, 59, 0.1);
+}
+
+.event-row-critical td:first-child {
+  border-left: 3px solid var(--status-critical);
+}
+
+.event-table td.event-time {
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.event-table td.event-message {
+  color: var(--text-primary);
+  /* Without this, a table with no fixed column widths sizes each
+     column to its longest unbreakable run of text, so a full sentence
+     of event message widened the whole table (and, since nothing
+     capped it, the page underneath it) instead of wrapping inside its
+     own column the way the payload preview's <pre> already does. */
+  overflow-wrap: anywhere;
+}
+
+.event-technique {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.severity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.severity-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.severity-good { color: var(--status-good); background: rgba(12, 163, 12, 0.12); }
+.severity-warning { color: var(--status-warning); background: rgba(250, 178, 25, 0.14); }
+.severity-serious { color: var(--status-serious); background: rgba(236, 131, 90, 0.14); }
+.severity-critical { color: var(--status-critical); background: rgba(208, 59, 59, 0.16); }
+
+/* Operations log footer */
+
+.ops-footer {
+  margin: 0 1.75rem 1.75rem;
+  padding: 0.9rem 1.25rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.ops-footer h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.ops-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.25rem;
+  max-height: 110px;
+  overflow-y: auto;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  font-family: "Cascadia Code", Consolas, monospace;
+}
+
+/* Attack education modal.
+   Shown every time an attack is executed. Deliberately blocking (a full
+   backdrop, not a toast): the point is to make the reader stop and read
+   what just happened before the dashboard moves on, per the request that
+   the simulation visually "pause" while this is up. */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+/* The class rule above sets its own `display`, which otherwise wins
+   over the browser's built-in `[hidden] { display: none }` rule at
+   equal specificity. Without this, the modal would stay visible
+   (showing empty placeholder content) regardless of the `hidden`
+   attribute, which is exactly what was happening before this rule
+   existed. */
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.modal-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(208, 59, 59, 0.16);
+  color: var(--status-critical);
+  margin-bottom: 0.6rem;
+}
+
+.modal-tag.modal-tag-blocked {
+  background: rgba(12, 163, 12, 0.14);
+  color: var(--status-good);
+}
+
+.modal-card h3 {
+  margin: 0 0 0.9rem;
+  font-size: 1.15rem;
+}
+
+.modal-facts {
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.modal-facts dt {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.6rem;
+}
+
+.modal-facts dt:first-child {
+  margin-top: 0;
+}
+
+.modal-facts dd {
+  margin: 0.1rem 0 0;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.modal-guidance {
+  margin: 0 0 1.1rem;
+  padding: 0.7rem 0.9rem;
+  background: rgba(250, 178, 25, 0.1);
+  border-left: 3px solid var(--status-warning);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.modal-guidance:empty {
+  display: none;
+}
+
+.modal-card-wide {
+  max-width: 640px;
+}
+
+/* Mitigation confirmation toast */
+
+.mitigation-toast {
+  position: fixed;
+  top: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: min(90vw, 640px);
+  /* Bigger on purpose: reported as "too slow to see," which given the
+     old size (0.86rem text, a 6-second timeout) meant it had mostly
+     finished fading by the time it was consciously read, not actually
+     read and dismissed. */
+  padding: 1.1rem 1.5rem;
+  background: var(--surface-1);
+  border: 1px solid rgba(12, 163, 12, 0.4);
+  border-left: 4px solid var(--status-good);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-primary);
+  z-index: 110;
+  cursor: pointer;
+  animation: toast-in 0.25s ease;
+}
+
+.mitigation-toast[hidden] {
+  display: none;
+}
+
+.mitigation-toast-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Attacks info reference panel */
+
+.attacks-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.attacks-info-item {
+  padding: 0.9rem 1rem;
+  background: var(--page-plane);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--seq-blue-400);
+  border-radius: 8px;
+}
+
+.attacks-info-item h4 {
+  margin: 0 0 0.45rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.attacks-info-item dl {
+  margin: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.attacks-info-item dt {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.45rem;
+}
+
+.attacks-info-item dt:first-child {
+  margin-top: 0;
+}
+
+.attacks-info-item dd {
+  margin: 0.05rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+@media (max-width: 980px) {
+  .zone-grid {
+    grid-template-columns: 1fr;
+  }
+  .kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .playbook-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Phone. Everything above this point was tuned down to tablet width
+   (980px) and never actually checked below that: the dashboard was
+   usable but not comfortable on a real phone screen. The single
+   biggest problem was never layout logic, it was that every section's
+   own side margin (.app-header, .status-banner, .kpi-row, .zone-grid,
+   .monitor-grid, .ops-footer, etc.) is the same fixed 1.75rem (28px)
+   used at desktop width. On a ~375px phone, 28px on each side is
+   already 15% of the screen gone to margin before any content starts;
+   this reclaims most of that without changing anything about how those
+   sections are laid out internally. */
+@media (max-width: 640px) {
+  .app-header,
+  .status-banner,
+  .quick-start,
+  .kpi-row,
+  .zone-grid,
+  .monitor-grid,
+  .monitor-kpi-row,
+  .ops-footer {
+    margin-left: 0.85rem;
+    margin-right: 0.85rem;
+  }
+
+  .kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+
+  /* "live" + the Live Monitor button were sitting side by side on the
+     same cramped line. flex-basis: 100% makes .connection-status claim
+     the whole row width inside .header-right's wrapping flex layout,
+     which pushes the Live Monitor link (the next item in source order)
+     onto its own line below it instead. */
+  .connection-status {
+    flex-basis: 100%;
+  }
+
+  /* The security event table is 4 real columns (Time, Severity,
+     Junction, Event) with genuinely long content in every one of them,
+     a timestamp, a severity badge, a full junction name, a full
+     sentence. There is no column width split that makes all four
+     readable side by side on a ~365px screen: adding overflow-wrap
+     alone (see .event-table td.event-message above) stopped the table
+     from forcing the page to scroll sideways, but with the Event
+     column squeezed down to roughly a quarter of an already-narrow
+     screen, it broke almost every word mid-syllable instead, worse to
+     read than before, confirmed by actually rendering it at 375px
+     width, not assumed. The real fix is the standard responsive-table
+     pattern: stop laying rows out as table columns at all here, and
+     stack each row's cells as a small block instead, so the Event
+     column effectively gets the whole row width to wrap normally in. */
+  .event-table thead {
+    display: none;
+  }
+  .event-table,
+  .event-table tbody,
+  .event-table tr,
+  .event-table td {
+    display: block;
+    width: auto;
+  }
+  .event-table tr {
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--gridline);
+  }
+  .event-table tr:last-child {
+    border-bottom: none;
+  }
+  .event-table td {
+    padding: 0.1rem 0;
+    border-bottom: none;
+  }
+  .event-table td.event-time {
+    display: inline-block;
+    margin-right: 0.5rem;
+  }
+  /* Severity cell: no dedicated class, second column by position. */
+  .event-table td:nth-child(2) {
+    display: inline-block;
+  }
+  /* Junction cell: no dedicated class either, and its own column
+     header is now hidden along with the rest of thead, so it needs an
+     inline label to still read as "which junction" at a glance. */
+  .event-table td:nth-child(3) {
+    margin-top: 0.15rem;
+    font-size: 0.72rem;
+  }
+  .event-table td:nth-child(3)::before {
+    content: "Junction: ";
+    color: var(--text-muted);
+  }
+  .event-table td.event-message {
+    display: block;
+    margin-top: 0.3rem;
+  }
+
+  /* Moved from the per-cell rule (.event-row-critical td) onto the row
+     itself: with cells stacked as blocks instead of sitting side by
+     side, four separate tinted-and-bordered cell boxes read as broken
+     layout, not emphasis. One highlighted block per row reads the same
+     way the colored badge already does at desktop width. */
+  .event-row-critical {
+    background: rgba(208, 59, 59, 0.1);
+    border-left: 3px solid var(--status-critical);
+    padding-left: 0.5rem;
+  }
+  .event-row-critical td {
+    background: none;
+    border-left: none;
+  }
+}
