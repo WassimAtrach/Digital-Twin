@@ -43,7 +43,7 @@ from statistics import mean
 from typing import Optional
 
 import tel_aviv_data
-from network import APPROACHES, MAX_QUEUE_PER_APPROACH, Intersection
+from network import APPROACHES, MAX_ORGANIC_QUEUE_PER_APPROACH, Intersection
 from orchestrator import _decide_phase, _serve_green_approaches
 
 # How many simulated detection ticks to actually record and hand back
@@ -136,7 +136,7 @@ def forecast_congestion(network, intersection_id: str, hour: int) -> Optional[di
                 list(sim.recent_arrivals[approach]), hourly_multiplier, volume_factor
             )
             updated = sim.queues[approach] + predicted
-            sim.queues[approach] = min(updated, MAX_QUEUE_PER_APPROACH)
+            sim.queues[approach] = min(updated, MAX_ORGANIC_QUEUE_PER_APPROACH)
             sim.recent_arrivals[approach].append(predicted)
 
         desired_phase = _decide_phase(sim, now)
