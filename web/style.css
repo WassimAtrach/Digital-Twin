@@ -2094,6 +2094,9 @@ body.page-stale > *:not(#disconnected-banner) {
 .about-centered .about-cta-row {
   justify-content: center;
 }
+.about-centered .about-prose {
+  text-align: center;
+}
 
 /* The header's own new nav button to this page, alongside the existing
    Live Monitor / Attack types guide buttons -- amber so it's visually
