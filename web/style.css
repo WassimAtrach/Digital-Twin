@@ -1856,21 +1856,34 @@ body.page-stale > *:not(#disconnected-banner) {
 .signal-dots .d-warning { background: var(--status-warning); }
 .signal-dots .d-good { background: var(--status-good); }
 
+/* The hero's own content (heading, role line, thesis, stat row) is
+   deliberately narrower than the page's full 72rem width -- a heading
+   and a couple of sentences stretched edge to edge would be
+   uncomfortably wide to read. But a narrower block with no margin of
+   its own doesn't center itself inside a wider parent, it just sits
+   flush against the LEFT edge by default, which is exactly what made
+   the whole page read as pinned to the left instead of centered on
+   the screen once .about-wrap itself got wider. Every piece of the
+   hero shares the same max-width and margin: 0 auto so they form one
+   centered column together -- the text inside still reads left to
+   right normally, only the block itself is centered on the page. */
 .about-hero h1 {
   font-size: 2.1rem;
-  margin: 0 0 0.4rem;
+  margin: 0 auto 0.4rem;
+  max-width: 46rem;
 }
 .about-role {
   font-size: 0.8rem;
   color: var(--text-muted);
-  margin: 0 0 1.1rem;
+  margin: 0 auto 1.1rem;
+  max-width: 46rem;
 }
 .about-thesis {
   font-size: 1.05rem;
   color: var(--text-secondary);
-  max-width: 36rem;
+  max-width: 46rem;
   line-height: 1.55;
-  margin: 0;
+  margin: 0 auto;
 }
 .about-thesis strong {
   color: var(--text-primary);
@@ -1880,13 +1893,13 @@ body.page-stale > *:not(#disconnected-banner) {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
-  margin-top: 1.75rem;
+  margin: 1.75rem auto 0;
   /* Capped narrower than .about-wrap's own width: four short number
      tiles stretched across the page's full new width would each be
      mostly empty padding around one word and a digit. The card grids
      further down (highlights, bugs) are the sections meant to use the
      wide container; the hero stays closer to the prose measure. */
-  max-width: 40rem;
+  max-width: 46rem;
 }
 .about-stats .stat-tile {
   text-align: center;
@@ -1904,10 +1917,15 @@ body.page-stale > *:not(#disconnected-banner) {
 }
 
 .about-prose {
-  max-width: 38rem;
+  max-width: 42rem;
   color: var(--text-secondary);
   font-size: 0.96rem;
   line-height: 1.65;
+  /* Same reasoning as the hero block above: narrower than .about-wrap,
+     so it needs its own margin: auto to actually sit in the middle of
+     the page instead of defaulting to the left edge. */
+  margin-left: auto;
+  margin-right: auto;
 }
 .about-prose strong {
   color: var(--text-primary);
@@ -2054,6 +2072,21 @@ body.page-stale > *:not(#disconnected-banner) {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 1.25rem;
+}
+
+/* Modifier for the two narrative "bookend" sections (the opening
+   premise paragraph, the closing call to action) that pairs with the
+   centered hero above: their header, prose, and buttons all center as
+   one column, instead of a left-aligned heading sitting above a now-
+   centered paragraph. The sections in between (highlights, bugs,
+   architecture, stack) stay left-aligned on purpose -- they sit above
+   full-width grids, and a centered heading over a left-to-right grid
+   would look mismatched rather than tidy. */
+.about-centered .zone-header {
+  text-align: center;
+}
+.about-centered .about-cta-row {
+  justify-content: center;
 }
 
 .about-footer {
