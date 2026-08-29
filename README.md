@@ -840,38 +840,6 @@ different from what really goes out over the wire. Deliberately just the raw
 request — nothing appended below it — so it answers exactly one question:
 what literally goes out over the wire.
 
-## Setup (Windows / PowerShell)
-
-This machine only has the `py` launcher working correctly — the bare
-`python`/`pip` commands resolve to non-functional Windows Store aliases. All
-commands below use `py` or the virtual environment's own interpreter path
-directly (rather than `Activate.ps1`), which also avoids PowerShell execution-
-policy prompts during a live demo.
-
-From the project root:
-
-```powershell
-# One-time setup
-py -m venv .venv
-.venv\Scripts\python.exe -m pip install -r server\requirements.txt
-
-# Start the server (run from inside server/, so its plain imports resolve)
-cd server
-..\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000
-```
-
-Then open **http://localhost:8000** (the SOC dashboard) or
-**http://localhost:8000/monitor.html** (the Live Network Monitor) directly.
-
-The standalone attacker tool (a second terminal, from the project root):
-
-```powershell
-.venv\Scripts\python.exe attacker.py inject --target namir_einstein
-.venv\Scripts\python.exe attacker.py spoof-congestion --target namir_einstein --approach N --count 40
-.venv\Scripts\python.exe attacker.py spoof-emergency --target namir_einstein --approach N
-.venv\Scripts\python.exe attacker.py flood --attack inject --target namir_einstein --repeat 10
-```
-
 ## Live demo script
 
 1. **Normal operation.** Open the dashboard. Five junctions, all healthy,
@@ -927,62 +895,3 @@ The standalone attacker tool (a second terminal, from the project root):
     hit **Forecast** to watch that junction's canvas fast-forward through a
     full 3-simulated-minute forecast for that hour, without touching the live
     network at all.
-
-## What this does — and doesn't — prove
-
-This is a simulation built to demonstrate real, documented vulnerability classes
-clearly and credibly — not a security audit of ITC's actual product (no non-
-public information about it was available) or a production-ready controller.
-Worth being upfront about if asked:
-
-- The "network" here is localhost — no real network segmentation, TLS, or
-  physical access control is being modeled.
-- Both signing keys are hardcoded demo constants (clearly labeled as such in
-  `security.py`); a real deployment would use a hardware security module or
-  managed secrets store, with per-device keys and rotation.
-- The telemetry plausibility check (rejecting an implausible count even if
-  correctly signed) defends against a different threat than the demo's
-  attacker — a compromised-but-authenticated camera, or a bug in a legitimate
-  one — and isn't reachable by the demo's own attacks, which never have a
-  valid signature to begin with. It's real, working code, just not one of the
-  scripted beats.
-- Five junctions and one attacker-identity scheme are modeled; a real system
-  manages many more controllers and authenticates them individually.
-- No persistence — state resets on server restart, convenient for a repeatable
-  demo, not how a real controller behaves.
-- KPIs (throughput, wait time, congestion index) are computed live from the
-  simulation's own data (a rolling-window throughput measurement, Little's Law
-  for wait time), not fabricated numbers — but they describe this simulation,
-  not a claim about ITC's real-world results.
-- The real-world grounding (`tel_aviv_data.py`) is genuine and cited, but it's a
-  small, honest calibration nudge on top of a simplified simulation, not a claim
-  that this reproduces real Tel Aviv traffic patterns. Two of five junctions
-  have a real published number behind them; the other three are explicitly
-  qualitative, on purpose, rather than having one invented.
-- The ML predictor is a real, continuously-trained model over real simulated
-  data, not a canned forecast — but it is a small single linear model predicting
-  a few seconds ahead, not a claim about ITC's actual (undisclosed) modeling
-  approach or its real-world accuracy.
-- The command/telemetry freshness window (8 seconds) is a demo-scale choice,
-  generous enough that a fast message-capture-and-resend genuinely still
-  works sometimes, so the point ("bounded exposure, not perfect prevention")
-  stays honest rather than showing "blocked" unconditionally. A production
-  system would tune this to its own real network-latency and clock-skew
-  budget, not to what reads well live.
-- Gap-out's thresholds (`GAP_OUT_MIN_GREEN_SECONDS`, `GAP_OUT_QUEUE_THRESHOLD`)
-  are reasonable modeling choices illustrating a real, named technique from
-  actuated-signal-control practice, not values tuned against real intersection
-  data.
-- Coordinated attacks model a real, more severe threat pattern (an attacker
-  rarely stops at one node once they've reached a network), but the demo's
-  five junctions share one attacker-identity/threat-tracking model; a real
-  deployment's per-device authentication would make a coordinated campaign
-  look different in its own telemetry than this simplified version does.
-
-The point is narrower and more useful than "here's a toy hack": an
-unauthenticated control channel bridging a modern AI layer onto legacy field
-hardware is a real, documented class of vulnerability in this exact industry,
-and closing it doesn't require exotic technology — channel-separated
-authentication, an independent safety check that doesn't trust the software
-layer, plausibility bounds on sensor input, and abuse tracking cover everything
-demonstrated here.
