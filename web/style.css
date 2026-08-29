@@ -1827,7 +1827,7 @@ body.page-stale > *:not(#disconnected-banner) {
    --------------------------------------------------------------- */
 
 .about-wrap {
-  max-width: 46rem;
+  max-width: 72rem;
   margin: 0 auto;
   padding: 0 1.75rem;
 }
@@ -1881,6 +1881,12 @@ body.page-stale > *:not(#disconnected-banner) {
   grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
   margin-top: 1.75rem;
+  /* Capped narrower than .about-wrap's own width: four short number
+     tiles stretched across the page's full new width would each be
+     mostly empty padding around one word and a digit. The card grids
+     further down (highlights, bugs) are the sections meant to use the
+     wide container; the hero stays closer to the prose measure. */
+  max-width: 40rem;
 }
 .about-stats .stat-tile {
   text-align: center;
@@ -1907,21 +1913,30 @@ body.page-stale > *:not(#disconnected-banner) {
   color: var(--text-primary);
 }
 
+/* A real 2-column card grid, same shape as the dashboard pages' own
+   .zone-grid, not a single narrow stacked list -- on a normal desktop
+   width a one-column list of five short items left most of the page
+   empty on both sides; pairing cards side by side actually uses the
+   space the wide .about-wrap now provides. */
 .highlight-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 640px) {
+  .highlight-list {
+    grid-template-columns: 1fr;
+  }
 }
 .highlight-item {
-  padding: 1.2rem 0;
-  border-top: 1px solid var(--border);
-}
-.highlight-item:first-child {
-  border-top: none;
-  padding-top: 0;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.1rem 1.3rem;
 }
 .highlight-item h3 {
   font-size: 0.98rem;
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.5rem;
   display: flex;
   align-items: baseline;
   gap: 0.6rem;
@@ -1942,11 +1957,9 @@ body.page-stale > *:not(#disconnected-banner) {
   margin: 0;
   color: var(--text-secondary);
   font-size: 0.9rem;
-  max-width: 36rem;
 }
 .highlight-item pre.code {
   margin: 0.6rem 0 0;
-  max-width: 36rem;
   padding: 0.65rem 0.9rem;
   background: var(--page-plane);
   border: 1px solid var(--border);
@@ -1959,9 +1972,14 @@ body.page-stale > *:not(#disconnected-banner) {
 }
 
 .bug-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
+}
+@media (max-width: 640px) {
+  .bug-grid {
+    grid-template-columns: 1fr;
+  }
 }
 .bug-card {
   background: var(--surface-1);
