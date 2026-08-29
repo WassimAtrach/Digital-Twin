@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ITC Digital Twin — About This Project</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- A static content page, deliberately: no WebSocket, no live data,
+       nothing here changes while you're reading it. Linked from both
+       dashboard pages' headers for anyone who wants the engineering
+       story behind the live demo, not just the demo itself. -->
+  <header class="app-header">
+    <div class="header-title">
+      <h1>ITC Digital Twin</h1>
+      <p class="subtitle">About this project</p>
+    </div>
+    <div class="header-right">
+      <a href="index.html" class="btn btn-header" title="Back to the Security Console">
+        ← Security Console
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <section class="about-hero about-wrap">
+      <div class="signal-dots" aria-hidden="true">
+        <span class="d-critical"></span><span class="d-warning"></span><span class="d-good"></span>
+      </div>
+      <h1>A digital twin, built to be attacked</h1>
+      <p class="about-role">Full-stack · applied security · applied ML — solo project</p>
+      <p class="about-thesis">
+        A working digital twin of a five-junction traffic-signal network — an AI
+        that times the lights from live sensor data, and a real attack console
+        that demonstrates <strong>documented, published ICS vulnerabilities</strong>
+        against it, not invented ones.
+      </p>
+
+      <div class="about-stats">
+        <div class="stat-tile">
+          <span class="stat-label">Junctions</span>
+          <span class="stat-value">5</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-label">MITRE ATT&amp;CK techniques modeled</span>
+          <span class="stat-value">4</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-label">Independently signed channels</span>
+          <span class="stat-value">2</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-label">Real bugs found &amp; fixed live</span>
+          <span class="stat-value">10+</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-section about-wrap">
+      <p class="about-prose">
+        Most "security demo" projects invent a toy vulnerability to patch. This
+        one doesn't: the attack it opens with — an unauthenticated command
+        channel — is the exact weakness University of Michigan researchers found
+        in real production traffic controllers in 2014
+        ("<a href="https://www.usenix.org/system/files/conference/woot14/woot14-ghena.pdf" target="_blank" rel="noopener noreferrer">Green Lights Forever</a>").
+        The five junctions carry real Tel Aviv street names, and two of them are
+        backed by genuine, cited traffic-volume research — including a real
+        intersection ITC (the Israeli traffic-tech company this project is
+        modeled on) told <a href="https://www.ynetnews.com/environment/article/sjvw2tsjt" target="_blank" rel="noopener noreferrer">ynet</a> it actually manages. Every attack is tagged with
+        its real MITRE ATT&amp;CK for ICS technique. Nothing here is dressed up to
+        look researched — it's built from what's actually published.
+      </p>
+    </section>
+
+    <section class="about-section about-wrap" aria-labelledby="highlights-title">
+      <div class="zone-header">
+        <h2 id="highlights-title">Technical highlights</h2>
+        <p class="zone-subtitle">What's actually interesting under the hood</p>
+      </div>
+
+      <div class="highlight-list">
+        <div class="highlight-item">
+          <h3>No special "trusted" code path <span class="highlight-tag">architecture</span></h3>
+          <p>
+            The legitimate AI orchestrator and a standalone CLI attacker call
+            the exact same two functions to submit a command or a sensor
+            reading. There's no internal shortcut that skips authentication
+            for "trusted" traffic — the only thing that distinguishes a real
+            signal from an attack is whether the request carries a valid
+            signature. That symmetry is what makes the security model
+            provable rather than asserted.
+          </p>
+        </div>
+
+        <div class="highlight-item">
+          <h3>Replay-resistant signing, not just "has a password" <span class="highlight-tag">security</span></h3>
+          <p>
+            Commands and telemetry are HMAC-SHA256 signed with the timestamp
+            folded into the signed payload — not carried alongside it, which
+            would let a captured signature be replayed with a forged fresh
+            timestamp. Comparison uses a constant-time check to close the
+            timing side-channel a naive <code>==</code> would leak.
+          </p>
+          <pre class="code">if abs(time.time() - timestamp) > FRESHNESS_WINDOW_SECONDS:
+    return False  # mathematically valid signature, but too old
+return hmac.compare_digest(signature, expected)</pre>
+        </div>
+
+        <div class="highlight-item">
+          <h3>Defense in depth, modeled on real hardware <span class="highlight-tag">security</span></h3>
+          <p>
+            A software Conflict Monitor runs after signature verification,
+            standing in for the physical Malfunction Management Unit real
+            traffic cabinets wire between the controller and the lamps — it
+            vetoes a dangerous command even if the signature was completely
+            valid. One compromised layer doesn't cascade into a dangerous
+            outcome by itself.
+          </p>
+        </div>
+
+        <div class="highlight-item">
+          <h3>A live-learning ML model, hand-rolled and explainable <span class="highlight-tag">ML</span></h3>
+          <p>
+            One shared linear regression model forecasts near-term arrivals
+            for every junction, trained online via gradient descent for as
+            long as the server runs — no pre-baked dataset. Built from
+            scratch rather than pulling in a library, so the prediction step
+            is a single, fully readable dot product. It also trains on every
+            accepted sensor reading, forged ones included, which means a
+            data-poisoning attack doesn't just distort one number — it
+            measurably nudges what the model has learned.
+          </p>
+        </div>
+
+        <div class="highlight-item">
+          <h3>Tested by attacking it, not by reading it <span class="highlight-tag">rigor</span></h3>
+          <p>
+            Verification throughout meant firing real traffic at the live
+            server — malformed requests, 210 genuine concurrent WebSocket
+            connections to prove a connection cap actually holds, headless-
+            browser automation clicking real buttons to catch bugs an API
+            test alone would miss. Fixes were re-tested against the exact
+            same live reproduction that found the bug, not assumed correct
+            from the diff.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-section about-wrap" aria-labelledby="bugs-title">
+      <div class="zone-header">
+        <h2 id="bugs-title">Real bugs, found by breaking my own system</h2>
+        <p class="zone-subtitle">Two, condensed. Both were found live, not by code review.</p>
+      </div>
+      <div class="bug-grid">
+        <div class="bug-card">
+          <div class="bug-title">One forged sensor reading corrupted the AI across all five junctions</div>
+          <p>
+            Because the forecasting model is shared across every junction for
+            better generalization, a single extreme value sent as one
+            "vehicle count" became a training target that blew out the
+            model's weights network-wide — not just at the junction it
+            targeted. Root-caused to plain gradient descent's lack of
+            built-in resistance to a single outlier, then capped what can
+            actually reach the training step.
+          </p>
+          <span class="fixed-tag">✓ Reproduced live, fixed, re-verified against the same attack</span>
+        </div>
+        <div class="bug-card">
+          <div class="bug-title">The button called "Isolate Node" never actually isolated anything</div>
+          <p>
+            Its own tooltip promised it would cut a junction off from all
+            traffic. Isolating a junction and immediately re-attacking it
+            directly proved otherwise — the flag that marked a junction
+            isolated was being set, but never actually checked against
+            incoming requests anywhere.
+          </p>
+          <span class="fixed-tag">✓ Found by testing the real claim, not trusting the label</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-section about-wrap" aria-labelledby="architecture-title">
+      <div class="zone-header">
+        <h2 id="architecture-title">Architecture, briefly</h2>
+      </div>
+      <div class="layer-strip">
+        <div class="layer-row">
+          <span class="layer-name">Security</span>
+          <p>Two independently-keyed signed channels, freshness-windowed against replay, an auto-blocking threat tracker, and a conflict monitor that trusts nothing above it.</p>
+        </div>
+        <div class="layer-row">
+          <span class="layer-name">Intelligence</span>
+          <p>An orchestrator that scores real-time queues plus the ML model's forecast to time each signal, including gap-out early-termination logic from real actuated-signal-control practice.</p>
+        </div>
+        <div class="layer-row">
+          <span class="layer-name">Simulation</span>
+          <p>A camera network generating realistic, weighted arrival events, calibrated per junction from cited real-world traffic research.</p>
+        </div>
+        <div class="layer-row">
+          <span class="layer-name">Interface</span>
+          <p>Two live dashboards over one WebSocket feed — a SOC-style attack console with a guided incident-response playbook, and a five-junction live monitor.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-section about-wrap" aria-labelledby="stack-title">
+      <div class="zone-header">
+        <h2 id="stack-title">Stack</h2>
+      </div>
+      <div class="stack-row">
+        <span class="stack-pill">Python</span>
+        <span class="stack-pill">FastAPI</span>
+        <span class="stack-pill">asyncio</span>
+        <span class="stack-pill">WebSockets</span>
+        <span class="stack-pill">HMAC-SHA256</span>
+        <span class="stack-pill">vanilla JS (no framework)</span>
+        <span class="stack-pill">HTML5 Canvas</span>
+        <span class="stack-pill">hand-rolled online SGD</span>
+        <span class="stack-pill">no database, by design</span>
+      </div>
+    </section>
+
+    <section class="about-section about-wrap" aria-labelledby="try-title">
+      <div class="zone-header">
+        <h2 id="try-title">Attack it yourself</h2>
+        <p class="zone-subtitle">The clearest proof of a security project is letting someone try to break it.</p>
+      </div>
+      <p class="about-prose">
+        Flip Legacy Retrofit on, run any attack, watch it succeed — then flip
+        ITC Secure Integration on and run the identical attack again.
+      </p>
+      <div class="about-cta-row">
+        <a href="index.html" class="btn btn-header btn-header-highlight">Open the Security Console →</a>
+        <a href="https://github.com/WassimAtrach/Digital-Twin" target="_blank" rel="noopener noreferrer" class="btn btn-header">Source on GitHub</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="about-footer about-wrap">
+    <p>Built solo end to end: architecture, backend, the ML model, the frontend, the security model, and the testing that found the bugs above.</p>
+  </footer>
+</body>
+</html>

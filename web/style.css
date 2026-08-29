@@ -1809,3 +1809,269 @@ body.page-stale > *:not(#disconnected-banner) {
     border-left: none;
   }
 }
+
+/* ---------------------------------------------------------------
+   About page (web/about.html)
+
+   A case-study page explaining this project's engineering to someone
+   who has never seen it before -- an interviewer, a reviewer -- linked
+   from the header of both dashboard pages. Long-form reading, not a
+   live data screen, which is why it introduces its own max-width
+   reading column (.about-wrap) instead of the dashboard pages'
+   full-bleed .zone-grid: a wide monitor is right for scanning five
+   live junctions at once, wrong for a paragraph of prose. Everything
+   else -- colors, card shape, button styling -- deliberately reuses
+   the same tokens and components already defined above, so this still
+   reads as the same product and not a bolted-on page with its own
+   invented design system.
+   --------------------------------------------------------------- */
+
+.about-wrap {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 0 1.75rem;
+}
+
+.about-hero {
+  padding: 2.5rem 0 2rem;
+}
+
+/* The three colors this project already reserves for junction health
+   (good/warning/critical), used here as a small, literal signal-light
+   motif -- the one place on this page it's worth spending a visual
+   flourish, since it's the actual subject of the project, not a
+   generic decoration. */
+.signal-dots {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+}
+.signal-dots span {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  display: block;
+}
+.signal-dots .d-critical { background: var(--status-critical); }
+.signal-dots .d-warning { background: var(--status-warning); }
+.signal-dots .d-good { background: var(--status-good); }
+
+.about-hero h1 {
+  font-size: 2.1rem;
+  margin: 0 0 0.4rem;
+}
+.about-role {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0 0 1.1rem;
+}
+.about-thesis {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  max-width: 36rem;
+  line-height: 1.55;
+  margin: 0;
+}
+.about-thesis strong {
+  color: var(--text-primary);
+}
+
+.about-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+.about-stats .stat-tile {
+  text-align: center;
+}
+.about-stats .stat-value {
+  font-size: 1.35rem;
+}
+
+.about-section {
+  padding: 2rem 0;
+  border-top: 1px solid var(--border);
+}
+.about-section .zone-header {
+  margin-bottom: 1.1rem;
+}
+
+.about-prose {
+  max-width: 38rem;
+  color: var(--text-secondary);
+  font-size: 0.96rem;
+  line-height: 1.65;
+}
+.about-prose strong {
+  color: var(--text-primary);
+}
+
+.highlight-list {
+  display: flex;
+  flex-direction: column;
+}
+.highlight-item {
+  padding: 1.2rem 0;
+  border-top: 1px solid var(--border);
+}
+.highlight-item:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+.highlight-item h3 {
+  font-size: 0.98rem;
+  margin: 0 0 0.4rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.highlight-tag {
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--seq-blue-400);
+  background: rgba(57, 135, 229, 0.12);
+  border: 1px solid rgba(57, 135, 229, 0.3);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.highlight-item p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  max-width: 36rem;
+}
+.highlight-item pre.code {
+  margin: 0.6rem 0 0;
+  max-width: 36rem;
+  padding: 0.65rem 0.9rem;
+  background: var(--page-plane);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow-x: auto;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.bug-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.bug-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--status-critical);
+  border-radius: 10px;
+  padding: 1.1rem 1.3rem;
+}
+.bug-card .bug-title {
+  font-weight: 700;
+  font-size: 0.96rem;
+  margin-bottom: 0.4rem;
+  color: var(--text-primary);
+}
+.bug-card p {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.5rem;
+}
+.bug-card .fixed-tag {
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--status-good);
+  font-weight: 600;
+}
+
+.layer-strip {
+  display: flex;
+  flex-direction: column;
+}
+.layer-row {
+  display: grid;
+  grid-template-columns: 8.5rem 1fr;
+  gap: 1rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--border);
+}
+.layer-row:first-child {
+  border-top: none;
+}
+.layer-row .layer-name {
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--seq-blue-400);
+  font-weight: 700;
+}
+.layer-row p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.stack-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.stack-pill {
+  font-size: 0.76rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  background: var(--page-plane);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.about-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.about-footer {
+  padding: 2rem 0 2.5rem;
+  border-top: 1px solid var(--border);
+}
+.about-footer p {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+/* The header's own new nav button to this page, alongside the existing
+   Live Monitor / Attack types guide buttons -- amber so it's visually
+   distinct from both (green and blue are already taken), matching the
+   same pattern those two already established rather than inventing a
+   different one. */
+.btn.btn-header-about {
+  border-color: var(--status-warning);
+  color: var(--status-warning);
+  background: rgba(250, 178, 25, 0.1);
+}
+.btn.btn-header-about:hover {
+  background: rgba(250, 178, 25, 0.2);
+  color: var(--text-primary);
+}
+
+@media (max-width: 640px) {
+  .about-wrap {
+    padding: 0 0.85rem;
+  }
+  .about-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .layer-row {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+}
