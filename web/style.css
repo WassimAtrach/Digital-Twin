@@ -1962,6 +1962,15 @@ body.page-stale > *:not(#disconnected-banner) {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1.1rem 1.3rem;
+  /* A grid item's default min-width is its content's un-wrapped
+     natural width, which the code sample's longest line exceeds on a
+     phone screen -- overflow-x:auto on the <pre> itself doesn't stop
+     that, since the auto-minimum comes from this element, not the
+     <pre>. Without this, the long line forces the whole grid (and the
+     page's layout viewport with it) wider than the phone, so the
+     browser zooms the entire page out to fit -- the real cause behind
+     "everything pushed to one side" on a phone. */
+  min-width: 0;
 }
 .highlight-item h3 {
   font-size: 0.98rem;
