@@ -1,6 +1,6 @@
-# ITC Digital Twin — Traffic Network Security Operations
+# Traffic Control Digital Twin — Traffic Network Security Operations
 
-A live digital twin of a five-junction ITC-style traffic network: real AI-driven
+A live digital twin of a five-junction AI-retrofit traffic network: real AI-driven
 signal orchestration, backed by a genuinely-trained ML model that predicts
 near-term traffic and is calibrated with real, cited Tel Aviv traffic data,
 running over simulated camera telemetry; an attack console modeling four
@@ -11,16 +11,16 @@ response dashboard that reacts to all of it in real time.
 
 ## Why this is grounded in reality, not invented
 
-**The company.** ITC — Intelligent Traffic Control is a real Israeli startup
-(founded 2019, Series A funded). Its public product pages describe an AI-driven
-signal-orchestration platform (VisionInsight/VisionFlow) plus an analytics
-dashboard (VisionTwin) that is explicitly **hardware-agnostic**: it connects to
-*existing* cameras and *existing* traffic-light infrastructure rather than
-replacing it, and is deployed with Netivei Israel (the national road operator),
-piloted at a real Tel Aviv junction (Namir–Einstein). No non-public details about
-ITC's actual system were available or used — everything here (the protocol, the
-phase model, the specific junction names beyond Namir-Einstein) is a simplified,
-self-contained model built for this demo.
+**The inspiration.** This project is modeled on a real Israeli AI-traffic
+startup (founded 2019, Series A funded). Its public product pages describe an
+AI-driven signal-orchestration platform plus an analytics dashboard that is
+explicitly **hardware-agnostic**: it connects to *existing* cameras and
+*existing* traffic-light infrastructure rather than replacing it, and is
+deployed with Netivei Israel (the national road operator), piloted at a real
+Tel Aviv junction (Namir–Einstein). No non-public details about that
+company's actual system were available or used — everything here (the
+protocol, the phase model, the specific junction names beyond Namir-Einstein)
+is a simplified, self-contained model built for this demo.
 
 That "retrofit onto existing infrastructure" model is also the realistic attack
 surface this demo focuses on: a modern AI layer bridged onto field hardware that,
@@ -34,10 +34,10 @@ the actual streets rather than invented to look researched:
   Aviv's busiest junctions: Israeli Ministry of Transport figures put it at
   roughly 150,000 vehicles a day since a 2003 upgrade, up from about 100,000
   before. ([Wikipedia](https://en.wikipedia.org/wiki/Kaplan_Interchange))
-- **Namir – Einstein** is a real intersection ITC actually manages, carrying, in
-  ITC's own words to ynet, "tens of thousands of vehicles" every day, out of
-  more than 100,000 cars/day ITC's technology manages across its Tel Aviv
-  deployments overall. ([ynetnews](https://www.ynetnews.com/environment/article/sjvw2tsjt))
+- **Namir – Einstein** is a real intersection that same real startup actually
+  manages, carrying, in its own words to ynet, "tens of thousands of vehicles"
+  every day, out of more than 100,000 cars/day its technology manages across
+  its Tel Aviv deployments overall. ([ynetnews](https://www.ynetnews.com/environment/article/sjvw2tsjt))
 
 The other three (Ibn Gabirol–Arlozorov, Begin–HaShalom, Rokach–Yehudit) are real,
 well-documented busy corridors, but no independently published daily-vehicle-
@@ -45,8 +45,9 @@ count for those specific junctions turned up during research — see
 `server/tel_aviv_data.py` for the full citations, including for those three,
 which are deliberately left qualitative rather than having a number invented for
 them. These facts calibrate each junction's relative simulated traffic volume
-(see "The ML predictor" below); they are not a claim that ITC actually manages
-all five, or that the exact pairings/topology reflect a real deployment.
+(see "The ML predictor" below); they are not a claim that the real startup
+this is modeled on actually manages all five, or that the exact
+pairings/topology reflect a real deployment.
 
 **The vulnerability classes.** In 2014, University of Michigan researchers
 ("Green Lights Forever: Analyzing the Security of Traffic Infrastructure") found
@@ -140,7 +141,7 @@ Browser dashboard  <--WebSocket + REST-->  FastAPI server  <-- attacker.py (CLI)
 
 ## Attack classes and their defenses
 
-| Attack | Channel | What it does | Legacy mode | ITC Secure Integration |
+| Attack | Channel | What it does | Legacy mode | Traffic Control Secure Integration |
 |---|---|---|---|---|
 | **Command Injection** (T0855) | Command | Unsigned `FORCE_ALL_GREEN` to a target junction | Applied directly — real collision-risk state | Rejected: invalid signature. Even a hypothetically-signed one would still be vetoed by the independent conflict monitor |
 | **Sensor Spoofing — Congestion** (T0856) | Telemetry | Reports an implausible fake queue on one approach | Trusted outright, poisons the AI orchestrator's timing decisions | Rejected: invalid signature (and, independently, fails a plausibility bound even if signed) |
@@ -523,8 +524,8 @@ arrival history, the current traffic-load setting, and its junction's real-world
 calibration factor (see above). `orchestrator.py` adds that forecast to the
 current queue when deciding whether to switch a phase, so the signal can start
 favoring a side slightly before it's visibly backed up, not only after — closer
-to how ITC's own product is described publicly (predicting and adapting to
-demand, not just reacting to it).
+to how real AI-retrofit traffic platforms are described publicly (predicting
+and adapting to demand, not just reacting to it).
 
 **How it's trained.** A single linear regression model, shared across every
 intersection and approach, trained online via gradient descent from real
@@ -864,7 +865,7 @@ what literally goes out over the wire.
 6. **Respond.** In the Incident Response Playbook panel, click **Fail-Safe
    Flash** to stabilize it, then **Restore Normal Operation** to hand it back
    to the AI.
-7. **Switch on ITC Secure Integration.** The toggle resets the network to a
+7. **Switch on Traffic Control Secure Integration.** The toggle resets the network to a
    clean baseline.
 8. **Repeat the attack.** Same Command Injection — rejected outright, logged as
    a warning, junction keeps running normally.

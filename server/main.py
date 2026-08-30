@@ -1,7 +1,7 @@
 """
 main.py
 
-FastAPI application for the ITC digital-twin demo.
+FastAPI application for the Traffic Control digital-twin demo.
 
 Serves:
   * a WebSocket (`/ws`) that pushes live network state to the dashboard,
@@ -518,7 +518,7 @@ async def lifespan(app: FastAPI):
     orchestrator_task.cancel()
 
 
-app = FastAPI(title="ITC Digital Twin - Attack & Defense Demo", lifespan=lifespan)
+app = FastAPI(title="Traffic Control Digital Twin - Attack & Defense Demo", lifespan=lifespan)
 
 
 # Neither FastAPI nor Starlette impose any default limit on request body
@@ -722,14 +722,14 @@ async def submit_telemetry(req: TelemetryRequest):
 
 @app.post("/api/mode")
 async def set_mode(req: ModeRequest):
-    """Switch between the legacy retrofit baseline and ITC Secure
-    Integration. Also resets every intersection to a known-good state,
-    so each half of the demo starts from the same clean slate.
+    """Switch between the legacy retrofit baseline and Traffic Control
+    Secure Integration. Also resets every intersection to a known-good
+    state, so each half of the demo starts from the same clean slate.
     """
     if req.mode not in ("legacy", "secure"):
         return {"ok": False, "reason": "mode must be 'legacy' or 'secure'"}
     network.reset_all(mode=req.mode)
-    label = "ITC SECURE INTEGRATION" if req.mode == "secure" else "LEGACY RETROFIT (unauthenticated)"
+    label = "TRAFFIC CONTROL SECURE INTEGRATION" if req.mode == "secure" else "LEGACY RETROFIT (unauthenticated)"
     network.log_ops(f"Deployment configuration switched to {label}")
     await broadcast()
     return {"ok": True, "mode": network.mode}

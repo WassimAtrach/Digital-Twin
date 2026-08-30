@@ -2,7 +2,7 @@
 orchestrator.py
 
 The "AI" congestion-responsive signal controller: the orchestration
-behavior ITC's VisionInsight/VisionFlow products are described as
+behavior real AI-retrofit traffic platforms are publicly described as
 providing: read live conditions, predict what's coming, decide signal
 timing, apply it.
 

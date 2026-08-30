@@ -1,13 +1,13 @@
 """
 security.py
 
-Security primitives for the ITC digital twin.
+Security primitives for the Traffic Control digital twin.
 
 The twin models two independent, separately-keyed channels between the
 central AI orchestration layer and each field intersection, mirroring
-how ITC's real product is described publicly (a retrofit layer that
-connects to *existing* cameras and *existing* traffic-light hardware
-rather than replacing it):
+how real AI-retrofit traffic platforms are described publicly (a
+retrofit layer that connects to *existing* cameras and *existing*
+traffic-light hardware rather than replacing it):
 
   * the COMMAND channel: carries phase decisions from the AI
     orchestrator (or an attacker) to a field controller.
@@ -84,19 +84,26 @@ from typing import Optional
 # committed source would mean anyone reading the repo could forge a
 # "validly signed" request directly, defeating Secure mode's whole
 # guarantee for any public deployment of it, not just the local demo.
-# Set ITC_COMMAND_SIGNING_KEY / ITC_TELEMETRY_SIGNING_KEY in Render's
-# Environment Variables dashboard (or any real deployment's secret
-# store) for that deployment's actual keys; they are never written to a
-# file in this repo. The literal fallback below only applies when the
-# variable is unset, which is the normal, zero-setup local-dev case
-# (`uvicorn main:app --reload` with nothing extra configured) -- it is
-# deliberately labelled LOCAL-DEV-ONLY rather than looking like a real
-# key that happens to also work, so it can't be mistaken for one.
+# Set TRAFFIC_CONTROL_COMMAND_SIGNING_KEY / TRAFFIC_CONTROL_TELEMETRY_
+# SIGNING_KEY in Render's Environment Variables dashboard (or any real
+# deployment's secret store) for that deployment's actual keys; they
+# are never written to a file in this repo. The literal fallback below
+# only applies when the variable is unset, which is the normal,
+# zero-setup local-dev case (`uvicorn main:app --reload` with nothing
+# extra configured) -- it is deliberately labelled LOCAL-DEV-ONLY
+# rather than looking like a real key that happens to also work, so it
+# can't be mistaken for one.
+#
+# Renamed from ITC_COMMAND_SIGNING_KEY / ITC_TELEMETRY_SIGNING_KEY:
+# if a real deployment already has the old names set in its own
+# environment (e.g. Render's dashboard), it must be updated to the new
+# names too, or it will silently fall back to the LOCAL-DEV-ONLY key
+# below on next deploy instead of failing loudly.
 COMMAND_SIGNING_KEY = os.environ.get(
-    "ITC_COMMAND_SIGNING_KEY", "itc-orchestrator-command-channel-key-LOCAL-DEV-ONLY"
+    "TRAFFIC_CONTROL_COMMAND_SIGNING_KEY", "traffic-control-orchestrator-command-channel-key-LOCAL-DEV-ONLY"
 ).encode("utf-8")
 TELEMETRY_SIGNING_KEY = os.environ.get(
-    "ITC_TELEMETRY_SIGNING_KEY", "itc-camera-telemetry-channel-key-LOCAL-DEV-ONLY"
+    "TRAFFIC_CONTROL_TELEMETRY_SIGNING_KEY", "traffic-control-camera-telemetry-channel-key-LOCAL-DEV-ONLY"
 ).encode("utf-8")
 
 # The undocumented maintenance override the legacy baseline's command

@@ -3,8 +3,8 @@ network.py
 
 The digital twin's domain model: a small network of simulated
 intersections (a "corridor" of five junctions with real Tel Aviv street
-names; the pairings and topology are illustrative, not real ITC
-deployment data, but two of the five carry a genuine, cited real-world
+names; the pairings and topology are illustrative, not a real
+deployment's data, but two of the five carry a genuine, cited real-world
 traffic-volume grounding, see tel_aviv_data.py), the security
 bookkeeping shared across the network, and the KPI math shown on the
 dashboard.
@@ -338,9 +338,10 @@ class OpsLogEntry:
 
 def _build_intersections() -> dict:
     """Five junctions in a small hub-and-spoke corridor. Names combine
-    real Tel Aviv streets (illustrative pairings, not real deployment
-    data). Namir-Einstein specifically echoes ITC's real, publicly
-    reported pilot location, as a grounding detail.
+    real Tel Aviv streets (illustrative pairings, not a real
+    deployment's data). Namir-Einstein specifically echoes a real,
+    publicly reported AI-traffic pilot location in Tel Aviv, as a
+    grounding detail.
     """
     layout = [
         ("begin_hashalom", "Begin - HaShalom", 50, 50),

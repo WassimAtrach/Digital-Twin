@@ -1,7 +1,7 @@
 """
 detection.py
 
-Simulates the camera/sensor layer: the part of a real ITC-style
+Simulates the camera/sensor layer: the part of a real AI-retrofit
 deployment that watches an intersection's approaches and reports what it
 sees. Real detection would be computer vision over camera feeds; this
 generates statistically plausible arrival events instead, so the rest of

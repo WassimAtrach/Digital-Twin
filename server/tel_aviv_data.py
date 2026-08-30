@@ -17,13 +17,14 @@ Sources (fetched and read directly, not taken from a search snippet):
     before its 2003 upgrade, and 150,000 daily afterward, per
     Wikipedia's Kaplan Interchange article, citing Israeli Ministry of
     Transport figures. https://en.wikipedia.org/wiki/Kaplan_Interchange
-  * Einstein-Namir: a real intersection ITC (Intelligent Traffic
-    Control, the company this whole project is modeled on) actually
-    manages. ITC's own head of product told ynet: "one intersection
-    ITC manages in particular is Einstein-Namir where tens of
-    thousands of vehicles pass through every day," and that ITC's
-    technology overall "manages more than 100,000 cars on the road
-    daily" across its Tel Aviv deployments.
+  * Einstein-Namir: a real intersection a real Israeli AI-retrofit
+    traffic startup actually manages. Its own head of product told
+    ynet: "one intersection ITC manages in particular is Einstein-Namir
+    where tens of thousands of vehicles pass through every day," and
+    that its technology overall "manages more than 100,000 cars on the
+    road daily" across its Tel Aviv deployments. Quoted verbatim from
+    the source below rather than paraphrased, so the company name
+    inside the direct quote is left as actually said, not altered.
     https://www.ynetnews.com/environment/article/sjvw2tsjt
 
 This module's only real job is to turn those facts into a small,
@@ -79,9 +80,9 @@ REAL_WORLD_CONTEXT: dict = {
     ),
     "namir_einstein": RealWorldContext(
         summary=(
-            "Einstein-Namir is a real intersection ITC (the company this "
-            "project is modeled on) actually manages, carrying, in ITC's "
-            "own words, \"tens of thousands of vehicles\" every day."
+            "Einstein-Namir is a real intersection a real Israeli "
+            "AI-retrofit traffic startup actually manages, carrying, in "
+            "its own words, \"tens of thousands of vehicles\" every day."
         ),
         source="https://www.ynetnews.com/environment/article/sjvw2tsjt",
         relative_volume_factor=1.15,

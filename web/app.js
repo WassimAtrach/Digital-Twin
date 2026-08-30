@@ -1,7 +1,7 @@
 /*
  * app.js
  *
- * Frontend for the ITC digital-twin SOC dashboard.
+ * Frontend for the Traffic Control digital-twin SOC dashboard.
  *
  * One WebSocket connection keeps a local copy of the server's full
  * network snapshot in sync; every render function below reads from that
@@ -261,7 +261,7 @@ function renderStatusBanner() {
     const secure = currentNetwork.mode === "secure";
     statusBannerIconEl.textContent = "✅";
     statusBannerTextEl.textContent = secure
-      ? "Network normal — all 5 junctions running automatically under ITC Secure Integration. No active threats."
+      ? "Network normal — all 5 junctions running automatically under Traffic Control Secure Integration. No active threats."
       : "Network normal — all 5 junctions running automatically. Legacy Retrofit mode: the command and telemetry channels don't require authentication.";
     return;
   }
@@ -272,7 +272,7 @@ function renderStatusBanner() {
 
   if (worst === "critical") {
     statusBannerIconEl.textContent = "🚨";
-    statusBannerTextEl.textContent = `COLLISION RISK at ${names}: an unauthorized command forced conflicting green lights. This is exactly what Legacy Retrofit mode allows — switch to ITC Secure Integration to stop it.`;
+    statusBannerTextEl.textContent = `COLLISION RISK at ${names}: an unauthorized command forced conflicting green lights. This is exactly what Legacy Retrofit mode allows — switch to Traffic Control Secure Integration to stop it.`;
   } else if (worst === "serious") {
     statusBannerIconEl.textContent = "🔒";
     statusBannerTextEl.textContent = `${affected.length} junction${plural} isolated: ${names}. Held safe and cut off from the AI orchestrator — recovers automatically in under 30 seconds.`;
@@ -1099,8 +1099,8 @@ function showAttackModal(type, succeeded, targetIntersectionId, reason, floodSum
            Isolate Node, or auto-blocked) and is rejecting EVERY
            request right now, in either Legacy or Secure mode -- this
            has nothing to do with signature verification, so the old
-           fallback text ("rejected automatically by ITC Secure
-           Integration") was actively false here, and worse, gave no
+           fallback text ("rejected automatically by Traffic Control
+           Secure Integration") was actively false here, and worse, gave no
            confirmation that clicking Isolate Node is exactly what's
            defending the junction right now. Reported as "the defense
            doesn't work at all" by someone who'd just clicked Isolate
@@ -1120,7 +1120,7 @@ function showAttackModal(type, succeeded, targetIntersectionId, reason, floodSum
       modalGuidanceEl.textContent =
         "Your simulated attacker is already blocked network-wide from an earlier attempt. It clears on its own after about 30 seconds; try again after that.";
     } else {
-      modalGuidanceEl.textContent = "This was rejected automatically by ITC Secure Integration. No action needed.";
+      modalGuidanceEl.textContent = "This was rejected automatically by Traffic Control Secure Integration. No action needed.";
     }
     /* Deliberately NOT calling disarmGuidedResponse() here. A blocked
        attack has nothing to remediate, so it must not clear a glow that

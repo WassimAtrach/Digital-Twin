@@ -1,7 +1,7 @@
 """
 attacker.py
 
-Standalone attacker tool for the ITC digital-twin demo.
+Standalone attacker tool for the Traffic Control digital-twin demo.
 
 Plays the role of an outside attacker who found the network's command
 and/or telemetry endpoints (e.g. by scanning an exposed network segment)
@@ -109,7 +109,7 @@ def run_flood(args) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="ITC digital-twin attack simulator (authorized demo use only)."
+        description="Traffic Control digital-twin attack simulator (authorized demo use only)."
     )
     parser.add_argument("--url", default="http://localhost:8000", help="base URL of the demo server")
     parser.add_argument("--source", default=DEFAULT_SOURCE, help="simulated attacker source identifier")

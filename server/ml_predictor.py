@@ -8,9 +8,9 @@ that junction's real-world calibration factor (see tel_aviv_data.py).
 
 This is what turns orchestrator.py's phase-switching decision from
 purely reactive (compare queues as they stand right now) into
-anticipatory (also weigh what is about to arrive), matching how ITC's
-own product is described publicly: predicting and adapting to demand,
-not only reacting to it.
+anticipatory (also weigh what is about to arrive), matching how real
+AI-retrofit traffic platforms are described publicly: predicting and
+adapting to demand, not only reacting to it.
 
 Implementation: a single linear regression model, shared across every
 intersection and approach (the underlying pattern, recent arrivals plus

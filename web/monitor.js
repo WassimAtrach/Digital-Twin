@@ -1,7 +1,7 @@
 /*
  * monitor.js
  *
- * ITC Live Network Monitor: a second, simpler page showing all five
+ * Traffic Control Live Network Monitor: a second, simpler page showing all five
  * junctions animating at once in real time, separate from the main SOC
  * dashboard (index.html/app.js), which stays focused on one junction
  * at a time as the "attack simulator" view (pick a target, watch it).
