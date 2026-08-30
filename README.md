@@ -347,7 +347,7 @@ Verified live, full cycle: isolate a junction → attack it → `{"ok": false,
 "reason": "isolated"}`, queue unchanged. A *different*, non-isolated
 junction attacked in the same moment still lands normally (queue 0 → 8),
 confirming this isn't an accidental global block. The event log shows both
-an attacker source and `itc-camera-network` itself being rejected while
+an attacker source and `traffic-control-camera-network` itself being rejected while
 isolated. Restore clears it and the junction accepts traffic again
 immediately afterward.
 

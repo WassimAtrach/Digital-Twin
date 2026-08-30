@@ -334,7 +334,7 @@ async def _process_intersection(network, intersection, now: float, apply_command
             phase=desired_phase,
             timestamp=now,
             signature=signature,
-            source="itc-orchestrator",
+            source="traffic-control-orchestrator",
             broadcast_result=False,
         )
 

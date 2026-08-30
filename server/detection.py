@@ -49,7 +49,7 @@ ROAD_USER_WEIGHTS = (
 # The legitimate camera network's identity on the telemetry channel,
 # distinct from any attacker source string, so the security event feed
 # and dashboard can tell real traffic from an attack at a glance.
-CAMERA_NETWORK_SOURCE = "itc-camera-network"
+CAMERA_NETWORK_SOURCE = "traffic-control-camera-network"
 
 
 def _pick_road_user_type() -> str:

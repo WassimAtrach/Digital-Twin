@@ -181,7 +181,7 @@ COMMAND_RATE_LIMIT_WINDOW_SECONDS = 5.0
 # project's deliberately-modeled attack classes (found reviewing the
 # code before a public deploy, not from any live incident). Sized
 # generously above how many real, legitimate sources this demo ever
-# actually has open at once (itc-orchestrator, itc-camera-network, one
+# actually has open at once (traffic-control-orchestrator, traffic-control-camera-network, one
 # simulated console attacker address, attacker.py's default source -- a
 # handful), so real traffic is in no realistic danger of evicting itself.
 MAX_TRACKED_SOURCES = 200

@@ -54,7 +54,7 @@ from security import (
 )
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("itc-digital-twin")
+logger = logging.getLogger("traffic-control-digital-twin")
 
 conflict_monitor = ConflictMonitor()
 
